@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dev-container-config answers file",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "Bump only when the generator makes a breaking change to this shape."
+    },
+    "name": { "type": "string", "description": "devcontainer.json 'name'. Default: DevContainer" },
+    "remoteUser": { "type": "string", "description": "Default: vscode (the non-root user baked into the base image)." },
+    "workspaceFolder": { "type": "string", "description": "Default: /workspace" },
+    "toolchains": {
+      "type": "object",
+      "description": "Built-in, security-reviewed install recipes -- reference a version, not raw apt/curl steps.",
+      "properties": {
+        "node": { "type": "object", "required": ["version"], "properties": { "version": { "type": "string" } } },
+        "java": { "type": "object", "required": ["version"], "properties": { "version": { "type": "string" } } }
+      }
+    },
+    "aptPackages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Plain 'apt-get install' packages that need no special repo setup."
+    },
+    "mountDirectories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["hostPath", "containerPath"],
+        "properties": {
+          "hostPath": { "type": "string", "description": "Relative to the workspace root on the host." },
+          "containerPath": { "type": "string" },
+          "readonly": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sourcePath", "targetPath"],
+        "properties": {
+          "sourcePath": {
+            "type": "string",
+            "description": "./foo or ../foo = relative to this answers file. Anything else = relative to the submodule root (e.g. templates/npm-guard.sh)."
+          },
+          "targetPath": { "type": "string", "description": "Absolute path inside the image, e.g. /etc/profile.d/npm-guard.sh" },
+          "executable": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "blockedRegistryHosts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Hostnames to null-route (both 0.0.0.0 and [::1] forms are generated automatically). Merged with blockedRegistryHostsFile, if set."
+    },
+    "blockedRegistryHostsFile": {
+      "type": "string",
+      "description": "Path to a newline-delimited hostname list (# comments and blank lines ignored). ./foo or ../foo = relative to this answers file. Anything else = relative to the submodule root, e.g. examples/blockedRegistryHosts.txt. Merged with blockedRegistryHosts, deduped."
+    },
+    "extraHosts": {
+      "type": "object",
+      "description": "Literal --add-host entries, e.g. { \"host.docker.internal\": \"host-gateway\" }. Not for null-routing -- use blockedRegistryHosts for that.",
+      "additionalProperties": { "type": "string" }
+    },
+    "postCreateCommand": { "type": "string" },
+    "javaProjectSourcePaths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Shortcut for customizations.vscode.settings['java.project.sourcePaths']."
+    },
+    "customizations": {
+      "type": "object",
+      "description": "Merged on top of the baseline vscode settings/extensions. Arrays are concatenated+deduped, objects replace the baseline key they collide with."
+    },
+    "features": {
+      "type": "object",
+      "description": "Passthrough for devcontainer Features unrelated to Node/Java (those are handled by toolchains). Default: {}"
+    },
+    "devcontainerExtra": {
+      "type": "object",
+      "description": "Escape hatch: merged last, verbatim, into the generated devcontainer.json. Use sparingly."
+    }
+  }
+}

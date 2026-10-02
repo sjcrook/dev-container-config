@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "name": "AppDevContainer",
+  "remoteUser": "vscode",
+  "toolchains": {
+    "node": { "version": "22" },
+    "java": { "version": "17" }
+  },
+  "mountDirectories": [
+    { "hostPath": "data", "containerPath": "/workspace/data", "readonly": true }
+  ],
+  "files": [
+    { "sourcePath": "templates/npm-guard.sh", "targetPath": "/etc/profile.d/npm-guard.sh", "executable": true }
+  ],
+  "blockedRegistryHostsFile": "examples/blockedRegistryHosts.txt",
+  "extraHosts": {
+    "test.ipresenttoyou.com": "host-gateway"
+  },
+  "postCreateCommand": "(command -v pnpm >/dev/null 2>&1 || npm install --registry https://pkg.harness.io/pkg/ct8onj8YTdaXtKaFsYCRLg/org-marklogic-npm/npm/ -g pnpm) && grep -q npm-guard ~/.bashrc || echo '. /workspace/.devcontainer/npm-guard.sh' >> ~/.bashrc",
+  "javaProjectSourcePaths": ["vendor/ml-genai-demo-v2/src"],
+  "customizations": {
+    "vscode": {
+      "extensions": ["vscjava.vscode-java-pack", "angular.ng-template", "esbenp.prettier-vscode", "saoudrizwan.claude-dev"]
+    }
+  }
+}

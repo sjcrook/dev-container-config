@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# generate.sh conflict output -- see README "Generating a devcontainer for your project"
+*.new
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~

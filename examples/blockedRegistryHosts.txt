@@ -1,0 +1,17 @@
+# Starter list of known public npm registry mirrors to null-route via --add-host.
+# One hostname per line. Lines starting with # and blank lines are ignored.
+# Not an official/universal list -- trim or extend per project. See README's
+# "npm Registry Block" section for why this is a DNS-level blocklist, not a firewall.
+registry.npmjs.org
+registry.yarnpkg.com
+skimdb.npmjs.com
+registry.npmmirror.com
+r.cnpmjs.org
+mirrors.cloud.tencent.com
+repo.huaweicloud.com
+registry.nodejitsu.com
+registry.mirror.cqupt.edu.cn
+registry.npmjs.eu
+registry.node-modules.io
+registry.js.ipfs.io
+npm.strongloop.com
