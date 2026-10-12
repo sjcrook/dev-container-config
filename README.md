@@ -4,7 +4,7 @@ A VSCode Dev Container designed to create a secure, isolated environment in whic
 
 This repo is meant to be vendored into other projects (e.g. as a git submodule). It does not ship a single fixed `devcontainer.json`/`Dockerfile` — it ships a **generator** that produces those files from a project-specific answers file, so every consuming project gets the same security hardening with only its real differences (toolchain versions, extra files, extra hosts, etc.) varying.
 
-Everything in this repo is the vendored, read-only core (`generate.sh`, `lib/`, `schema/`, `examples/`, `templates/`). The only files that land in a consuming project are whatever `generate.sh` writes into `--out-dir` (default `.devcontainer/`), plus the project's own answers file that you author yourself.
+Everything in this repo is the vendored, read-only core (`generate.sh`, `lib/`, `schema/`, `examples/`, `templates/`). The only files that land in a consuming project are whatever `generate.sh` writes into `--out-dir` (default `.devcontainer/`) — including the answers file itself, whether you authored it yourself or answered the interactive prompts.
 
 ## Install
 
@@ -41,6 +41,12 @@ Run these from your project's root (not from inside this submodule) so `--out-di
 ```
 
 Both modes write `devcontainer.json` and `Dockerfile` into `--out-dir` (default `.devcontainer/`). Start from [`vendor/dev-container-config/examples/minimal.answers.json`](examples/minimal.answers.json) or [`vendor/dev-container-config/examples/full.answers.json`](examples/full.answers.json) and see [`vendor/dev-container-config/schema/answers.schema.json`](schema/answers.schema.json) for every field.
+
+`generate.sh` also saves the resolved answers JSON into `--out-dir` so it's never only a throwaway temp file:
+- `--answers <file>` copies that file in under its own basename (e.g. `devcontainer.answers.json`) — skipped if it's already there.
+- Interactive mode saves the collected answers as `devcontainer.answers.json`.
+
+The generated `devcontainer.json`/`Dockerfile` headers cite this saved copy as their source, so future regenerations have a durable, reviewable file to point `--answers` at.
 
 **Generated files are not meant to be hand-edited.** Each one carries a header comment with a content hash. Re-running `generate.sh`:
 - Silently overwrites the file if it still matches that hash (untouched since the last generation).
@@ -232,7 +238,7 @@ Generated into a consuming project's `.devcontainer/` by `generate.sh` (see [Lay
 | `.devcontainer/devcontainer.json` | Container definition: image, mounts, runArgs, features, postCreateCommand. Generated — do not hand-edit |
 | `.devcontainer/Dockerfile` | Toolchain installs + root-lockdown, built from the answers file. Generated — do not hand-edit |
 | `.devcontainer/npm-guard.sh` | Copied from `templates/npm-guard.sh` if the answers file's `files[]` references it |
-| `.devcontainer/devcontainer.answers.json` | The project's own answers file — the real source of truth; re-run `generate.sh` after editing it |
+| `.devcontainer/devcontainer.answers.json` | The project's answers file — the real source of truth. Saved automatically by `generate.sh` (from `--answers <file>` or interactive prompts); re-run `generate.sh --answers .devcontainer/devcontainer.answers.json` after editing it |
 
 ## Updating
 

@@ -46,12 +46,25 @@ mkdir -p "${OUT_DIR}"
 if [ -n "${ANSWERS_FILE}" ]; then
   ANSWERS_JSON_FILE="$(answers_load_from_file "${ANSWERS_FILE}")"
   SOURCE_LABEL="${ANSWERS_FILE}"
+  ANSWERS_OUT_NAME="$(basename "${ANSWERS_FILE}")"
 else
   ANSWERS_JSON_FILE="$(answers_collect_interactive)"
   SOURCE_LABEL="<interactive>"
+  ANSWERS_OUT_NAME="devcontainer.answers.json"
 fi
 
 answers_validate_schema "${ANSWERS_JSON_FILE}"
+
+# Persist the answers (interactive or copied) alongside the generated output so
+# future regenerations have a durable, reviewable source instead of a temp file.
+ANSWERS_OUT="${OUT_DIR}/${ANSWERS_OUT_NAME}"
+ANSWERS_OUT_ABS="$(cd "${OUT_DIR}" && pwd)/${ANSWERS_OUT_NAME}"
+ANSWERS_SRC_ABS="$(cd "$(dirname "${ANSWERS_JSON_FILE}")" && pwd)/$(basename "${ANSWERS_JSON_FILE}")"
+if [ "${ANSWERS_SRC_ABS}" != "${ANSWERS_OUT_ABS}" ]; then
+  cp -f "${ANSWERS_JSON_FILE}" "${ANSWERS_OUT}"
+  echo "Wrote ${ANSWERS_OUT}"
+  SOURCE_LABEL="${ANSWERS_OUT}"
+fi
 
 BLOCKED_HOSTS_JSON="$(blocked_hosts_resolve "${ANSWERS_JSON_FILE}" "${SCRIPT_DIR}")"
 
