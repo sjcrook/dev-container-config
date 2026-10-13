@@ -29,6 +29,29 @@ toolchain_java_dockerfile() {
 # -- Java (Ubuntu apt repository; GPG-signed, build-time only) -----------------
 RUN apt-get update \\
     && apt-get install -y openjdk-${version}-jdk-headless
-ENV JAVA_HOME=/usr/lib/jvm/java-${version}-openjdk-\$(dpkg --print-architecture)
+# ENV does not expand shell commands, so create an arch-independent symlink.
+RUN ln -s /usr/lib/jvm/java-${version}-openjdk-\$(dpkg --print-architecture) /usr/lib/jvm/java-${version}-openjdk
+ENV JAVA_HOME=/usr/lib/jvm/java-${version}-openjdk
+EOF
+}
+
+toolchain_pnpm_dockerfile() {
+  cat <<'EOF'
+
+# -- pnpm (pinned via install-pnpm.sh, which reads the registry and
+#    min-release-age policy from the project's own .npmrc -- nothing
+#    registry-specific is hardcoded in this submodule) -------------------------
+# .npmrc is copied first so install-pnpm.sh can read it when it runs.
+# corepack disable is intentionally omitted here: Node comes from NodeSource's
+# apt repo (not the javascript-node devcontainer feature/image), so there is
+# no pre-existing Corepack pnpm shim to conflict with.
+COPY .npmrc /root/.npmrc
+COPY install-pnpm.sh /usr/local/bin/install-pnpm.sh
+RUN chmod +x /usr/local/bin/install-pnpm.sh \
+    && /usr/local/bin/install-pnpm.sh
+
+# -- npm-guard.sh: blocks npm install/ci/i/add shell-wide, redirects to pnpm --
+COPY npm-guard.sh /etc/profile.d/npm-guard.sh
+RUN chmod +x /etc/profile.d/npm-guard.sh
 EOF
 }

@@ -44,3 +44,29 @@ files_copy_all() {
     echo "Copied ${resolved} -> ${out_dir}/${base}"
   done
 }
+
+# Copies the two files toolchains.pnpm needs into the build context: the
+# project-supplied .npmrc (never committed to this submodule) and the built-in
+# install-pnpm.sh template. No-op if toolchains.pnpm isn't set.
+pnpm_copy_files() {
+  local answers_file="$1" submodule_root="$2" out_dir="$3"
+  local npmrc_path
+  npmrc_path="$(jq -r '.toolchains.pnpm.npmrcPath // empty' "${answers_file}")"
+  [ -z "${npmrc_path}" ] && return 0
+
+  local answers_dir resolved
+  answers_dir="$(cd "$(dirname "${answers_file}")" && pwd)"
+  resolved="$(resolve_submodule_path "${npmrc_path}" "${answers_dir}" "${submodule_root}")"
+  if [ ! -f "${resolved}" ]; then
+    echo "ERROR: toolchains.pnpm.npmrcPath not found: ${resolved}" >&2
+    exit 1
+  fi
+  cp -f "${resolved}" "${out_dir}/.npmrc"
+  echo "Copied ${resolved} -> ${out_dir}/.npmrc"
+
+  cp -f "${submodule_root}/templates/install-pnpm.sh" "${out_dir}/install-pnpm.sh"
+  echo "Copied ${submodule_root}/templates/install-pnpm.sh -> ${out_dir}/install-pnpm.sh"
+
+  cp -f "${submodule_root}/templates/npm-guard.sh" "${out_dir}/npm-guard.sh"
+  echo "Copied ${submodule_root}/templates/npm-guard.sh -> ${out_dir}/npm-guard.sh"
+}

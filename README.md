@@ -33,7 +33,7 @@ Run these from your project's root (not from inside this submodule) so `--out-di
 # Non-interactive: load every answer from a file (CI-friendly, reproducible)
 ./vendor/dev-container-config/generate.sh --answers .devcontainer/devcontainer.answers.json
 
-# Interactive: answer a handful of prompts; produces the same shape under the hood
+# Interactive: answer prompts, including optional bind mounts
 ./vendor/dev-container-config/generate.sh
 
 # Write somewhere other than ./.devcontainer, or force-overwrite hand-edited output
@@ -42,9 +42,12 @@ Run these from your project's root (not from inside this submodule) so `--out-di
 
 Both modes write `devcontainer.json` and `Dockerfile` into `--out-dir` (default `.devcontainer/`). Start from [`vendor/dev-container-config/examples/minimal.answers.json`](examples/minimal.answers.json) or [`vendor/dev-container-config/examples/full.answers.json`](examples/full.answers.json) and see [`vendor/dev-container-config/schema/answers.schema.json`](schema/answers.schema.json) for every field.
 
+Interactive mode can add multiple bind mounts. For each mount, enter a host path relative to the workspace, an absolute container path, and whether it should be read-only; the first mount defaults to `data` → `/workspace/data`, read-only.
+
 `generate.sh` also saves the resolved answers JSON into `--out-dir` so it's never only a throwaway temp file:
 - `--answers <file>` copies that file in under its own basename (e.g. `devcontainer.answers.json`) — skipped if it's already there.
 - Interactive mode saves the collected answers as `devcontainer.answers.json`.
+- Paths entered for project files are saved relative to that answers file, so the saved answers can be reused from another checkout.
 
 The generated `devcontainer.json`/`Dockerfile` headers cite this saved copy as their source, so future regenerations have a durable, reviewable file to point `--answers` at.
 
@@ -54,6 +57,15 @@ The generated `devcontainer.json`/`Dockerfile` headers cite this saved copy as t
 
 If something a project needs isn't expressible in the answers file, that's a signal to add a field to the schema — not to hand-edit the generated output.
 
+## Testing
+
+```bash
+./tests/run.sh              # unit tests + real docker build/run checks
+./tests/run.sh --no-docker  # unit tests only (no docker required)
+```
+
+`tests/unit/` exercises the renderers and jq filters directly (fast, bash + jq only). `tests/docker/` builds the generated Dockerfile against a local fake registry and runs `npm-guard.sh` in a real container — skipped automatically if docker isn't installed/running.
+
 ### Layout of this repo
 
 | Path | Purpose |
@@ -62,7 +74,9 @@ If something a project needs isn't expressible in the answers file, that's a sig
 | `lib/` | Generator implementation (bash + `jq`) — toolchain recipes, renderers, hash/conflict handling, file copying |
 | `schema/answers.schema.json` | Documents every answers-file field |
 | `examples/*.answers.json` | Starting points to copy into a consuming project |
-| `templates/npm-guard.sh` | Built-in file consuming projects can reference via `files[]` |
+| `templates/npm-guard.sh` | Built-in file; copied automatically when `toolchains.pnpm` is set (or via `files[]`) |
+| `templates/install-pnpm.sh` | Built-in file; copied + run automatically when `toolchains.pnpm` is set |
+| `tests/` | Test suite — see [Testing](#testing) |
 
 ## Security Overview
 
@@ -172,7 +186,7 @@ Returns to the host. Run `docker compose` commands from the host, not from insid
 | Base image | `mcr.microsoft.com/devcontainers/base:ubuntu-22.04` (fixed — not configurable per project) |
 | Java | Installed via `apt-get` in the Dockerfile (version set by `toolchains.java.version` in the answers file) |
 | Node.js | Installed via NodeSource's apt repo in the Dockerfile — GPG key saved to a keyring, never piped into a shell (version set by `toolchains.node.version`) |
-| Package manager | pnpm, if the project opts into it (see `postCreateCommand` / `files` in the answers file) |
+| Package manager | pnpm, if the project opts into it (see `toolchains.pnpm.npmrcPath` in the answers file) |
 | User | `vscode` (UID 1000, non-root) by default — overridable via `remoteUser` |
 
 Devcontainer Features are intentionally not used for Node/Java: the Java feature installs via SDKMAN, which fetches from `adoptium.net` at container-creation time — an unpinned, runtime network dependency. Installing via `apt-get`/NodeSource in the Dockerfile moves that fetch to build time, from vetted, signed sources. See [`lib/toolchains.sh`](lib/toolchains.sh) for the exact recipes.
@@ -217,13 +231,41 @@ Use `pnpm` with the internal registry instead, for example:
 pnpm install --registry https://pkg.harness.io/pkg/<hash>/<org>/npm/
 ```
 
-The `npm-guard.sh` script intercepts `npm install`, `npm ci`, `npm i`, and `npm add` shell-wide and redirects you to `pnpm`:
+Set `toolchains.pnpm.npmrcPath` in the answers file (pointing at a project-supplied `.npmrc` with `registry=` and optionally `min-release-age=`) to enforce this automatically. That one field wires up everything, with nothing registry-specific hardcoded in this submodule:
 
-```
-[BLOCKED] This project uses pnpm. Run: pnpm install
+- `templates/install-pnpm.sh` is COPY'd into the image and run at `docker build` time. It reads the registry URL and `min-release-age` straight out of the project's own `.npmrc` (also COPY'd in, to `/root/.npmrc`) and installs the newest pnpm version old enough to clear that gate -- avoiding the 403 a min-release-age-gated registry returns for versions published too recently. If `.npmrc` has no `min-release-age` line, it defaults to 0 (latest published version).
+- `templates/npm-guard.sh` is COPY'd into the image at `/etc/profile.d/npm-guard.sh` and also into `.devcontainer/npm-guard.sh` in the build context. It intercepts `npm install`, `npm ci`, `npm i`, and `npm add` shell-wide and redirects you to `pnpm`:
+
+  ```
+  [BLOCKED] This project uses pnpm. Run: pnpm install
+  ```
+
+- `postCreateCommand` automatically gets a line appended that sources `npm-guard.sh` from `~/.bashrc` (VS Code terminals are non-login shells, so `/etc/profile.d` isn't sourced automatically) -- merged with any `postCreateCommand` you also set in the answers file.
+
+The project's `.npmrc` itself is never committed to this generator repo -- only the path to it.
+
+### How file paths in the answers file are resolved
+
+`toolchains.pnpm.npmrcPath`, `blockedRegistryHostsFile`, and `files[].sourcePath` all use the same rules. Paths are resolved relative to **the directory containing the answers file**, not the directory you run `generate.sh` from:
+
+| Path form | Resolved against | Typical use |
+|---|---|---|
+| `./foo` or `../foo` | The answers file's directory | Files your project supplies (e.g. `.npmrc`) |
+| `foo/bar` (no leading `./` or `../`) | The submodule root (`vendor/dev-container-config/`) | Built-in files (e.g. `examples/blockedRegistryHosts.txt`, `templates/npm-guard.sh`) |
+| `/abs/path` | Used as-is | Not recommended -- not portable across machines |
+
+Because of this, `../` is only correct if the answers file lives one level below the files it references. For example, with the answers file at `.devcontainer/devcontainer.answers.json` and the project's `.npmrc` at the project root:
+
+```json
+"toolchains": { "pnpm": { "npmrcPath": "../.npmrc" } },
+"blockedRegistryHostsFile": "examples/blockedRegistryHosts.txt"
 ```
 
-The guard is sourced in `~/.bashrc` (user sessions) and installed to `/etc/profile.d/npm-guard.sh` (all sessions) by `postCreateCommand`.
+If the answers file is at the project root instead, use `./.npmrc`. To reference a hosts file kept in your own project rather than the submodule, use `./` or `../` (e.g. `../blocked-hosts.txt`). A path like `../vendor/dev-container-config/examples/...` only works when the answers file is in `.devcontainer/` (as saved by interactive mode); from a project-root answers file it points outside the project and fails with `blockedRegistryHostsFile not found`. Prefer the prefix-free `examples/...` form for built-in files, which works from any location.
+
+When you use interactive mode, absolute paths you enter are saved to `devcontainer.answers.json` as paths relative to `.devcontainer/` so the file stays portable.
+
+`toolchains.pnpm` requires `toolchains.node` to also be set; `generate.sh` fails fast with a clear error otherwise.
 
 ## Reaching Host Services
 
@@ -237,7 +279,9 @@ Generated into a consuming project's `.devcontainer/` by `generate.sh` (see [Lay
 |---|---|
 | `.devcontainer/devcontainer.json` | Container definition: image, mounts, runArgs, features, postCreateCommand. Generated — do not hand-edit |
 | `.devcontainer/Dockerfile` | Toolchain installs + root-lockdown, built from the answers file. Generated — do not hand-edit |
-| `.devcontainer/npm-guard.sh` | Copied from `templates/npm-guard.sh` if the answers file's `files[]` references it |
+| `.devcontainer/npm-guard.sh` | Copied from `templates/npm-guard.sh` when `toolchains.pnpm` is set (or via `files[]`) |
+| `.devcontainer/install-pnpm.sh` | Copied from `templates/install-pnpm.sh` when `toolchains.pnpm` is set |
+| `.devcontainer/.npmrc` | Copied from `toolchains.pnpm.npmrcPath` when `toolchains.pnpm` is set -- project-specific, never part of this submodule |
 | `.devcontainer/devcontainer.answers.json` | The project's answers file — the real source of truth. Saved automatically by `generate.sh` (from `--answers <file>` or interactive prompts); re-run `generate.sh --answers .devcontainer/devcontainer.answers.json` after editing it |
 
 ## Updating

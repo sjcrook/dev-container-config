@@ -9,6 +9,12 @@ ANSWERS_FILE="$1"
 REMOTE_USER="$(jq -r '.remoteUser // "vscode"' "${ANSWERS_FILE}")"
 NODE_VERSION="$(jq -r '.toolchains.node.version // empty' "${ANSWERS_FILE}")"
 JAVA_VERSION="$(jq -r '.toolchains.java.version // empty' "${ANSWERS_FILE}")"
+PNPM_NPMRC_PATH="$(jq -r '.toolchains.pnpm.npmrcPath // empty' "${ANSWERS_FILE}")"
+
+if [ -n "${PNPM_NPMRC_PATH}" ] && [ -z "${NODE_VERSION}" ]; then
+  echo "ERROR: toolchains.pnpm requires toolchains.node to be set" >&2
+  exit 1
+fi
 
 cat <<EOF
 
@@ -26,6 +32,10 @@ fi
 
 if [ -n "${JAVA_VERSION}" ]; then
   toolchain_java_dockerfile "${JAVA_VERSION}"
+fi
+
+if [ -n "${PNPM_NPMRC_PATH}" ]; then
+  toolchain_pnpm_dockerfile
 fi
 
 APT_PACKAGES=()

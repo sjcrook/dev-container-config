@@ -16,7 +16,18 @@
       "description": "Built-in, security-reviewed install recipes -- reference a version, not raw apt/curl steps.",
       "properties": {
         "node": { "type": "object", "required": ["version"], "properties": { "version": { "type": "string" } } },
-        "java": { "type": "object", "required": ["version"], "properties": { "version": { "type": "string" } } }
+        "java": { "type": "object", "required": ["version"], "properties": { "version": { "type": "string" } } },
+        "pnpm": {
+          "type": "object",
+          "required": ["npmrcPath"],
+          "description": "Enforces pnpm over npm: installs a pinned pnpm version at build time (templates/install-pnpm.sh) and blocks npm install/ci/i/add shell-wide (templates/npm-guard.sh). Requires toolchains.node. Both scripts and the postCreateCommand sourcing line are wired automatically -- no separate files[] entry needed.",
+          "properties": {
+            "npmrcPath": {
+              "type": "string",
+              "description": "Path to a project-supplied .npmrc with 'registry=' (required) and optionally 'min-release-age=' (days; install-pnpm.sh defaults to 0 -- latest published version -- if absent). ./foo or ../foo = relative to this answers file. Anything else = relative to the submodule root. COPY'd into the image as /root/.npmrc at build time and read by install-pnpm.sh -- this file is project-specific and must never live in this generator repo."
+            }
+          }
+        }
       }
     },
     "aptPackages": {
@@ -30,9 +41,9 @@
         "type": "object",
         "required": ["hostPath", "containerPath"],
         "properties": {
-          "hostPath": { "type": "string", "description": "Relative to the workspace root on the host." },
-          "containerPath": { "type": "string" },
-          "readonly": { "type": "boolean", "default": true }
+          "hostPath": { "type": "string", "description": "Relative to the workspace root on the host; the mount source is workspaceFolder/hostPath." },
+          "containerPath": { "type": "string", "description": "Absolute path inside the container." },
+          "readonly": { "type": "boolean", "default": true, "description": "Whether the bind mount is read-only." }
         }
       }
     },
