@@ -11,11 +11,11 @@ Everything in this repo is the vendored, read-only core (`generate.sh`, `lib/`, 
 Vendor this repo as a git submodule in the consuming project:
 
 ```bash
-git submodule add <this-repo-url> vendor/dev-container-config
+git submodule add <this-repo-url> external/dev-container-config
 git submodule update --init --recursive
 ```
 
-Unlike some vendored tools, nothing here hardcodes that path — `generate.sh` resolves its own location at runtime via `BASH_SOURCE`, so you can vendor it anywhere. `vendor/dev-container-config` is just the convention used throughout this README and in the shipped examples.
+Unlike some vendored tools, nothing here hardcodes that path — `generate.sh` resolves its own location at runtime via `BASH_SOURCE`, so you can vendor it anywhere. `external/dev-container-config` is just the convention used throughout this README and in the shipped examples.
 
 A fresh clone of a project that vendors this needs:
 
@@ -31,16 +31,16 @@ Run these from your project's root (not from inside this submodule) so `--out-di
 
 ```bash
 # Non-interactive: load every answer from a file (CI-friendly, reproducible)
-./vendor/dev-container-config/generate.sh --answers .devcontainer/devcontainer.answers.json
+./external/dev-container-config/generate.sh --answers .devcontainer/devcontainer.answers.json
 
 # Interactive: answer prompts, including optional bind mounts
-./vendor/dev-container-config/generate.sh
+./external/dev-container-config/generate.sh
 
 # Write somewhere other than ./.devcontainer, or force-overwrite hand-edited output
-./vendor/dev-container-config/generate.sh --answers .devcontainer/devcontainer.answers.json --out-dir .devcontainer --force
+./external/dev-container-config/generate.sh --answers .devcontainer/devcontainer.answers.json --out-dir .devcontainer --force
 ```
 
-Both modes write `devcontainer.json` and `Dockerfile` into `--out-dir` (default `.devcontainer/`). Start from [`vendor/dev-container-config/examples/minimal.answers.json`](examples/minimal.answers.json) or [`vendor/dev-container-config/examples/full.answers.json`](examples/full.answers.json) and see [`vendor/dev-container-config/schema/answers.schema.json`](schema/answers.schema.json) for every field.
+Both modes write `devcontainer.json` and `Dockerfile` into `--out-dir` (default `.devcontainer/`). Start from [`external/dev-container-config/examples/minimal.answers.json`](examples/minimal.answers.json) or [`external/dev-container-config/examples/full.answers.json`](examples/full.answers.json) and see [`external/dev-container-config/schema/answers.schema.json`](schema/answers.schema.json) for every field.
 
 Interactive mode can add multiple bind mounts. For each mount, enter a host path relative to the workspace, an absolute container path, and whether it should be read-only; the first mount defaults to `data` → `/workspace/data`, read-only.
 
@@ -221,7 +221,7 @@ Additional hardening applied via `runArgs`:
 
 ## npm Registry Block
 
-Public npm registries are blocked via `--add-host` entries that null-route the hostnames (`0.0.0.0` for IPv4, `::1` for IPv6). The hostname list comes from `blockedRegistryHostsFile` (a plain newline-delimited file, e.g. [`vendor/dev-container-config/examples/blockedRegistryHosts.txt`](examples/blockedRegistryHosts.txt)) merged with any ad-hoc `blockedRegistryHosts` entries in the answers file -- the generator expands each one into both the IPv4 and IPv6 form automatically. No list is hardcoded in the generator itself.
+Public npm registries are blocked via `--add-host` entries that null-route the hostnames (`0.0.0.0` for IPv4, `::1` for IPv6). The hostname list comes from `blockedRegistryHostsFile` (a plain newline-delimited file, e.g. [`external/dev-container-config/examples/blockedRegistryHosts.txt`](examples/blockedRegistryHosts.txt)) merged with any ad-hoc `blockedRegistryHosts` entries in the answers file -- the generator expands each one into both the IPv4 and IPv6 form automatically. No list is hardcoded in the generator itself.
 
 This is a hand-curated list of known public npm mirrors, not an official or universal standard -- trim it, extend it, or swap in your own file per project depending on which private registry you use and which mirrors are realistic bypass routes for your threat model. It's also a DNS-level blocklist, not a network firewall: it only stops resolution of *these specific hostnames*; it does not block outbound connections to a raw IP address or to a mirror not on the list. Treat it as defense-in-depth alongside `npm-guard.sh`, not as a complete egress block.
 
@@ -251,7 +251,7 @@ The project's `.npmrc` itself is never committed to this generator repo -- only 
 | Path form | Resolved against | Typical use |
 |---|---|---|
 | `./foo` or `../foo` | The answers file's directory | Files your project supplies (e.g. `.npmrc`) |
-| `foo/bar` (no leading `./` or `../`) | The submodule root (`vendor/dev-container-config/`) | Built-in files (e.g. `examples/blockedRegistryHosts.txt`, `templates/npm-guard.sh`) |
+| `foo/bar` (no leading `./` or `../`) | The submodule root (`external/dev-container-config/`) | Built-in files (e.g. `examples/blockedRegistryHosts.txt`, `templates/npm-guard.sh`) |
 | `/abs/path` | Used as-is | Not recommended -- not portable across machines |
 
 Because of this, `../` is only correct if the answers file lives one level below the files it references. For example, with the answers file at `.devcontainer/devcontainer.answers.json` and the project's `.npmrc` at the project root:
@@ -261,7 +261,7 @@ Because of this, `../` is only correct if the answers file lives one level below
 "blockedRegistryHostsFile": "examples/blockedRegistryHosts.txt"
 ```
 
-If the answers file is at the project root instead, use `./.npmrc`. To reference a hosts file kept in your own project rather than the submodule, use `./` or `../` (e.g. `../blocked-hosts.txt`). A path like `../vendor/dev-container-config/examples/...` only works when the answers file is in `.devcontainer/` (as saved by interactive mode); from a project-root answers file it points outside the project and fails with `blockedRegistryHostsFile not found`. Prefer the prefix-free `examples/...` form for built-in files, which works from any location.
+If the answers file is at the project root instead, use `./.npmrc`. To reference a hosts file kept in your own project rather than the submodule, use `./` or `../` (e.g. `../blocked-hosts.txt`). A path like `../external/dev-container-config/examples/...` only works when the answers file is in `.devcontainer/` (as saved by interactive mode); from a project-root answers file it points outside the project and fails with `blockedRegistryHostsFile not found`. Prefer the prefix-free `examples/...` form for built-in files, which works from any location.
 
 When you use interactive mode, absolute paths you enter are saved to `devcontainer.answers.json` as paths relative to `.devcontainer/` so the file stays portable.
 
@@ -289,17 +289,17 @@ Generated into a consuming project's `.devcontainer/` by `generate.sh` (see [Lay
 Pull upstream changes into a consuming project, from the consumer's repo root:
 
 ```bash
-git submodule update --remote vendor/dev-container-config   # fetches + fast-forwards to the submodule's remote HEAD
-git add vendor/dev-container-config                          # stage the new commit pointer
+git submodule update --remote external/dev-container-config   # fetches + fast-forwards to the submodule's remote HEAD
+git add external/dev-container-config                          # stage the new commit pointer
 git commit -m "chore: update dev-container-config"           # the pointer bump is a real commit in the consumer repo
 ```
 
-`--remote` is the key flag — a plain `git submodule update` alone re-checks-out whatever commit the consumer repo currently *points at*; it won't move that pointer forward on its own. Equivalently, from inside the submodule itself: `cd vendor/dev-container-config && git pull && cd - && git add vendor/dev-container-config && git commit`.
+`--remote` is the key flag — a plain `git submodule update` alone re-checks-out whatever commit the consumer repo currently *points at*; it won't move that pointer forward on its own. Equivalently, from inside the submodule itself: `cd external/dev-container-config && git pull && cd - && git add external/dev-container-config && git commit`.
 
 Re-run the generator afterward to pick up changes (new toolchain recipes, hardening tweaks, etc.):
 
 ```bash
-./vendor/dev-container-config/generate.sh --answers .devcontainer/devcontainer.answers.json
+./external/dev-container-config/generate.sh --answers .devcontainer/devcontainer.answers.json
 ```
 
 This won't clobber hand-edits — see [Generating a devcontainer for your project](#generating-a-devcontainer-for-your-project) for the hash-conflict/`.new` behavior.

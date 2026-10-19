@@ -14,7 +14,7 @@
   "extraHosts": {
     "test.ipresenttoyou.com": "host-gateway"
   },
-  "javaProjectSourcePaths": ["vendor/ml-genai-demo-v2/src"],
+  "javaProjectSourcePaths": ["external/ml-genai-demo-v2/src"],
   "customizations": {
     "vscode": {
       "extensions": ["vscjava.vscode-java-pack", "angular.ng-template", "esbenp.prettier-vscode", "saoudrizwan.claude-dev"]

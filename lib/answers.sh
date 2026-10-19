@@ -114,7 +114,7 @@ answers_collect_interactive() {
       read -r -p "  Path to your project's .npmrc (registry + optional min-release-age): " pnpm_npmrc_path
     fi
   fi
-  read -r -p "Hosts to null-route: comma-separated hostnames, or a path to a file (e.g. vendor/dev-container-config/examples/blockedRegistryHosts.txt), blank to skip: " blocked_hosts_raw
+  read -r -p "Hosts to null-route: comma-separated hostnames, or a path to a file (e.g. external/dev-container-config/examples/blockedRegistryHosts.txt), blank to skip: " blocked_hosts_raw
   blocked_hosts_is_file="false"
   if [ -n "${blocked_hosts_raw}" ] && [ -f "${blocked_hosts_raw}" ]; then
     blocked_hosts_is_file="true"
