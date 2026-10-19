@@ -31,6 +31,8 @@ files_copy_all() {
     [ -n "${line}" ] && entries+=("${line}")
   done < <(jq -c '.files // [] | .[]' "${answers_file}")
 
+  [ "${#entries[@]}" -eq 0 ] && return 0
+
   local entry src base resolved
   for entry in "${entries[@]}"; do
     src="$(printf '%s' "${entry}" | jq -r '.sourcePath')"
