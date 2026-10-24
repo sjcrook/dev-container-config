@@ -109,7 +109,7 @@ answers_collect_interactive() {
   want_pnpm_enforce=""
   pnpm_npmrc_path=""
   if [[ "${want_node}" =~ ^[Yy] ]]; then
-    read -r -p "Enforce pnpm over npm (installs a pinned pnpm at build time + blocks npm install)? [y/N]: " want_pnpm_enforce
+    read -r -p "Enforce pnpm over npm (installs age-eligible npm 11 + pnpm 12 and blocks npm install)? [y/N]: " want_pnpm_enforce
     if [[ "${want_pnpm_enforce}" =~ ^[Yy] ]]; then
       read -r -p "  Path to your project's .npmrc (registry + optional min-release-age): " pnpm_npmrc_path
     fi

@@ -44,7 +44,8 @@ test_pnpm_copy_files_copies_expected_files() {
   answers="${tmp}/answers.json"
   out_dir="${tmp}/out"
   mkdir -p "${out_dir}"
-  echo 'registry=https://example.com/' > "${tmp}/x.npmrc"
+  printf '%s\n' 'registry=https://example.com/' 'min-release-age=14' 'ignore-scripts=true' \
+    'verify-deps-before-run=never' > "${tmp}/x.npmrc"
   cat > "${answers}" <<'EOF'
 {"schemaVersion":1,"name":"t","dockerfileBuild":{"toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}}}}
 EOF
@@ -53,6 +54,11 @@ EOF
   [ -f "${out_dir}/.npmrc" ]; assert_equal "0" "$?" ".npmrc copied"
   [ -f "${out_dir}/install-pnpm.sh" ]; assert_equal "0" "$?" "install-pnpm.sh copied"
   [ -f "${out_dir}/npm-guard.sh" ]; assert_equal "0" "$?" "npm-guard.sh copied"
+  [ -f "${out_dir}/install-package-manager.cjs" ]; assert_equal "0" "$?" "package-manager installer copied"
+  [ -f "${out_dir}/pnpm-config.yaml" ]; assert_equal "0" "$?" "pnpm policy generated"
+  assert_equal "20160" "$(jq -r .minimumReleaseAge "${out_dir}/pnpm-config.yaml")" "corporate policy staged"
+  assert_not_contains "$(cat "${out_dir}/.npmrc")" "verify-deps-before-run=" "pnpm-only key removed from npm config"
+  assert_contains "$(cat "${tmp}/x.npmrc")" "verify-deps-before-run=never" "corporate source left intact"
   rm -rf "${tmp}"
 }
 

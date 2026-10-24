@@ -29,7 +29,18 @@ EOF
   out="$(_render "${answers}")"
   rm -rf "${tmp}"
   pcc="$(printf '%s' "${out}" | jq -r '.postCreateCommand')"
-  assert_contains "${pcc}" "npm-guard.sh' >> ~/.bashrc && echo custom" "guard line then custom command, in order"
+  assert_contains "${pcc}" "npm-guard.sh' >> ~/.bashrc) && echo custom" "guard setup grouped before custom command"
+}
+
+test_pnpm_guard_does_not_skip_custom_command_when_already_configured() {
+  local tmp pcc out
+  tmp="$(mktemp -d)"
+  printf '%s\n' '{"dockerfileBuild":{"toolchains":{"pnpm":{}}},"postCreateCommand":"echo CUSTOM-RAN"}' > "${tmp}/answers.json"
+  pcc="$(_render "${tmp}/answers.json" | jq -r '.postCreateCommand')"
+  echo npm-guard > "${tmp}/.bashrc"
+  out="$(HOME="${tmp}" sh -c "${pcc}")"
+  assert_contains "${out}" "CUSTOM-RAN" "existing guard does not suppress lifecycle command"
+  rm -rf "${tmp}"
 }
 
 test_no_pnpm_leaves_post_create_command_untouched() {

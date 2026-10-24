@@ -10,6 +10,8 @@ REMOTE_USER="$(jq -r '.remoteUser // "vscode"' "${ANSWERS_FILE}")"
 NODE_VERSION="$(jq -r '.dockerfileBuild.toolchains.node.version // empty' "${ANSWERS_FILE}")"
 JAVA_VERSION="$(jq -r '.dockerfileBuild.toolchains.java.version // empty' "${ANSWERS_FILE}")"
 PNPM_NPMRC_PATH="$(jq -r '.dockerfileBuild.toolchains.pnpm.npmrcPath // empty' "${ANSWERS_FILE}")"
+NPM_VERSION="$(jq -r '.dockerfileBuild.toolchains.pnpm.npmVersion // "11"' "${ANSWERS_FILE}")"
+PNPM_VERSION="$(jq -r '.dockerfileBuild.toolchains.pnpm.version // "12"' "${ANSWERS_FILE}")"
 
 if [ -n "${PNPM_NPMRC_PATH}" ] && [ -z "${NODE_VERSION}" ]; then
   echo "ERROR: dockerfileBuild.toolchains.pnpm requires dockerfileBuild.toolchains.node to be set" >&2
@@ -35,7 +37,17 @@ if [ -n "${JAVA_VERSION}" ]; then
 fi
 
 if [ -n "${PNPM_NPMRC_PATH}" ]; then
-  toolchain_pnpm_dockerfile
+  if ! [[ "${REMOTE_USER}" =~ ^[a-z_][a-z0-9_-]*$ ]] ||
+     ! [[ "${NPM_VERSION}" =~ ^[0-9]+(\.[0-9]+\.[0-9]+)?$ ]] ||
+     ! [[ "${PNPM_VERSION}" =~ ^12(\.[0-9]+\.[0-9]+)?$ ]]; then
+    echo "ERROR: pnpm requires a valid remoteUser, npm major/exact version, and pnpm 12 major/exact version" >&2
+    exit 1
+  fi
+  if [ "${REMOTE_USER}" = "root" ]; then
+    echo "ERROR: pnpm runtime configuration requires a non-root remoteUser" >&2
+    exit 1
+  fi
+  toolchain_pnpm_dockerfile "${REMOTE_USER}" "${NPM_VERSION}" "${PNPM_VERSION}"
 fi
 
 APT_PACKAGES=()

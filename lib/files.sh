@@ -47,9 +47,8 @@ files_copy_all() {
   done
 }
 
-# Copies the two files dockerfileBuild.toolchains.pnpm needs into the build
-# context: the project-supplied .npmrc (never committed to this submodule)
-# and the built-in install-pnpm.sh template. No-op if dockerfileBuild.toolchains.pnpm isn't set.
+# Stages the registry config, translated policy and bootstrap templates.
+# No-op if dockerfileBuild.toolchains.pnpm isn't set.
 pnpm_copy_files() {
   local answers_file="$1" submodule_root="$2" out_dir="$3"
   local npmrc_path
@@ -63,8 +62,11 @@ pnpm_copy_files() {
     echo "ERROR: dockerfileBuild.toolchains.pnpm.npmrcPath not found: ${resolved}" >&2
     exit 1
   fi
-  cp -f "${resolved}" "${out_dir}/.npmrc"
-  echo "Copied ${resolved} -> ${out_dir}/.npmrc"
+  jq -Rs -f "${submodule_root}/lib/npm-policy.jq" "${resolved}" > "${out_dir}/pnpm-config.yaml"
+  # pnpm-only behavior is translated into YAML, not passed to modern npm.
+  sed '/^[[:space:]]*verify-deps-before-run[[:space:]]*=/d' "${resolved}" > "${out_dir}/.npmrc"
+  echo "Configured ${resolved} -> ${out_dir}/.npmrc and pnpm-config.yaml"
+  cp -f "${submodule_root}/templates/install-package-manager.cjs" "${out_dir}/install-package-manager.cjs"
 
   cp -f "${submodule_root}/templates/install-pnpm.sh" "${out_dir}/install-pnpm.sh"
   echo "Copied ${submodule_root}/templates/install-pnpm.sh -> ${out_dir}/install-pnpm.sh"

@@ -29,11 +29,23 @@
             "pnpm": {
               "type": "object",
               "required": ["npmrcPath"],
-              "description": "Enforces pnpm over npm: installs a pinned pnpm version at build time (templates/install-pnpm.sh) and blocks npm install/ci/i/add shell-wide (templates/npm-guard.sh). Requires dockerfileBuild.toolchains.node. Both scripts and the postCreateCommand sourcing line are wired automatically -- no separate dockerfileBuild.files[] entry needed.",
+              "description": "Enforces pnpm over npm: installs age-eligible npm and pnpm versions, translates corporate .npmrc policy into pnpm 12 global configuration for root and remoteUser, and blocks npm install/ci/i/add. Requires Node and a non-root remoteUser. Registry blocking is configured separately.",
               "properties": {
+                "version": {
+                  "type": "string",
+                  "pattern": "^12(\\.[0-9]+\\.[0-9]+)?$",
+                  "default": "12",
+                  "description": "pnpm major 12 (rolling newest eligible stable release) or exact 12.x.y version. Exact versions must also meet the corporate age policy."
+                },
+                "npmVersion": {
+                  "type": "string",
+                  "pattern": "^[0-9]+(\\.[0-9]+\\.[0-9]+)?$",
+                  "default": "11",
+                  "description": "Bootstrap npm major or exact stable version, default 11. Selected version must be >=11.10.0 and compatible with the chosen Node version. npm enforces release age on pnpm's transitive bootstrap dependencies."
+                },
                 "npmrcPath": {
                   "type": "string",
-                  "description": "Path to a project-supplied .npmrc with 'registry=' (required) and optionally 'min-release-age=' (days; install-pnpm.sh defaults to 0 -- latest published version -- if absent). ./foo or ../foo = relative to this answers file. Anything else = relative to the submodule root. COPY'd into the image as /root/.npmrc at build time and read by install-pnpm.sh -- this file is project-specific and must never live in this generator repo."
+                  "description": "Corporate .npmrc: registry= required; min-release-age= is non-negative integer days (default 0), ignore-scripts= is true/false (default false). Also translates strict-ssl and verify-deps-before-run into pnpm YAML. Copied for root and remoteUser; literal authentication secrets are rejected. ./foo or ../foo resolves relative to the answers file, other relative paths to the submodule root."
                 }
               }
             }

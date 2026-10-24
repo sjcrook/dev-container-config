@@ -65,7 +65,15 @@ If something a project needs isn't expressible in the answers file, that's a sig
 ./tests/run.sh --no-docker  # unit tests only (no docker required)
 ```
 
-`tests/unit/` exercises the renderers and jq filters directly (fast, bash + jq only). `tests/docker/` builds the generated Dockerfile against a local fake registry and runs `npm-guard.sh` in a real container — skipped automatically if docker isn't installed/running.
+`tests/unit/` exercises the renderers and jq filters directly (fast, bash + jq only). `tests/docker/` exercises bootstrap selection and `npm-guard.sh` in real containers — skipped automatically if docker isn't installed/running.
+
+Docker tests exercise bootstrap selection without network access using the
+`node:22` image. To also test real pnpm resolution, set
+`DCC_TEST_IMAGE=<generated-image> ./tests/run.sh`. That image must use the
+example's 14-day policy and `ignore-scripts=true`, with the default `vscode`
+user. The runtime fixture serves a local registry and verifies global CLI and
+nested UI installs, transitive dependency age filtering, missing timestamps,
+and suppression of install scripts.
 
 ### Layout of this repo
 
@@ -76,7 +84,8 @@ If something a project needs isn't expressible in the answers file, that's a sig
 | `schema/answers.schema.json` | Documents every answers-file field |
 | `examples/*.answers.json` | Starting points to copy into a consuming project |
 | `templates/npm-guard.sh` | Built-in file; copied automatically when `dockerfileBuild.toolchains.pnpm` is set (or via `dockerfileBuild.files[]`) |
-| `templates/install-pnpm.sh` | Built-in file; copied + run automatically when `dockerfileBuild.toolchains.pnpm` is set |
+| `templates/install-pnpm.sh` | Bootstraps supported npm/pnpm versions when `dockerfileBuild.toolchains.pnpm` is set |
+| `templates/install-package-manager.cjs` | Selects eligible package-manager releases, checks Node compatibility, installs and records selections |
 | `tests/` | Test suite — see [Testing](#testing) |
 
 ## Security Overview
@@ -232,18 +241,134 @@ Use `pnpm` with the internal registry instead, for example:
 pnpm install --registry https://pkg.harness.io/pkg/<hash>/<org>/npm/
 ```
 
-Set `dockerfileBuild.toolchains.pnpm.npmrcPath` in the answers file (pointing at a project-supplied `.npmrc` with `registry=` and optionally `min-release-age=`) to enforce this automatically. That one field wires up everything, with nothing registry-specific hardcoded in this submodule:
+Registry blocking does **not** require pnpm: npm can use an internal registry
+too. Enabling the pnpm toolchain is a separate decision to require pnpm and
+install its npm guard. Projects without this toolchain retain their existing
+Node installation behavior; the generator does not configure package policy
+for those projects.
 
-- `templates/install-pnpm.sh` is COPY'd into the image and run at `docker build` time. It reads the registry URL and `min-release-age` straight out of the project's own `.npmrc` (also COPY'd in, to `/root/.npmrc`) and installs the newest pnpm version old enough to clear that gate -- avoiding the 403 a min-release-age-gated registry returns for versions published too recently. If `.npmrc` has no `min-release-age` line, it defaults to 0 (latest published version).
+Set `dockerfileBuild.toolchains.pnpm.npmrcPath` to a corporate/project-supplied
+`.npmrc`. That file is the policy source; do not repeat its policy in answers.
+The supported translation is:
+
+| Corporate `.npmrc` entry | Generated pnpm 12 user configuration |
+|---|---|
+| `registry=` and scoped registry/auth entries | Read from the user's `.npmrc` |
+| `min-release-age=14` | `minimumReleaseAge: 20160` (minutes) |
+| `ignore-scripts=true` | `ignoreScripts: true` |
+| `strict-ssl=true` | `strictSsl: true` |
+| `verify-deps-before-run=never` | `verifyDepsBeforeRun: false` |
+
+`registry=` is required. Age must be a non-negative integer in days; absent
+age means 0, and absent `ignore-scripts` means false, matching npm's default.
+Boolean policy values must be `true` or `false`. Entries use unquoted
+`key=value` syntax; blank lines, full-line `#`/`;` comments, whitespace around
+assignments and CRLF are supported. Duplicate keys use the last value.
+Unknown npm entries are preserved, not implicitly translated. pnpm-only
+`verify-deps-before-run` is removed from the generated `.npmrc` after
+translation; supported values also include booleans, `install`, `warn`,
+`error`, and `prompt`. Invalid supported policy values fail generation.
+
+Modern npm supports `min-release-age` in days; the old npm bundled with a Node
+distribution may not. pnpm 12 uses a different setting and YAML configuration:
+it does not enforce npm's age or script settings merely because they appear
+in `.npmrc`.
+
+The generated build:
+
+1. Configures root's `.npmrc` and `.config/pnpm/config.yaml`.
+2. Uses the bundled npm only to install an explicitly selected, age-eligible
+   npm release. The new npm then enforces age policy for pnpm's bootstrap
+   dependencies too.
+3. Installs supported pnpm 12 and validates that its configuration loads.
+4. Copies registry and translated policy to the configured non-root user's
+   home, resolving that home from the image's account database.
+5. Provides writable `/opt/devcontainer/pnpm` and `/opt/devcontainer/bin`
+   directories and adds the latter to the image's PATH, including outside VS
+   Code terminals.
+
+pnpm is configured with strict release-age checks and no exemption for
+missing publication timestamps. A registry rejection or no eligible version
+fails explicitly; there is no fallback to the public registry or a relaxed
+policy. Age filtering does not replace vulnerability scanning or corporate
+approval. pnpm bootstrap alone permits pnpm's own installation scripts to
+link its platform executable; it does not enable runtime package scripts.
+
+### Version selection and updates
+
+Consumers can select versions without changing this repository:
+
+```json
+"pnpm": {
+  "npmrcPath": "../.npmrc",
+  "npmVersion": "11",
+  "version": "12"
+}
+```
+
+The defaults select the newest eligible stable npm 11 and pnpm 12 releases.
+This is **rolling selection**, not a reproducible pin. Exact selections such
+as `"npmVersion": "11.21.0"` and `"version": "12.12.0"` are also accepted and
+must satisfy the age policy. npm must be at least 11.10.0. The build checks
+each selected package manager's Node engine requirement and fails with an
+actionable error on incompatibility. pnpm majors other than 12 require
+configuration support and testing in this repository before use.
+
+Successful selections are recorded in
+`/usr/local/share/devcontainer/package-managers.json`. For repeatable builds,
+review these versions and enter exact selections in the answers file.
+Regularly refresh and test those selections; do not pin indefinitely. Use
+committed lockfiles and frozen-lockfile installs for application dependencies.
+An exact top-level global CLI version alone does not lock its transitive
+dependencies. No automatic update scheduler, vulnerability scanner, or
+global CLI lockfile is provided.
+
+This policy applies to npm-registry packages, not base images, apt packages,
+or NodeSource's Node distributions. Runtime hostname blocking is not applied
+to Docker build networking.
+
+### Runtime installs and project configuration
+
+With the generated user defaults, a consumer may set:
+
+```json
+"postCreateCommand": "pnpm add --global cline"
+```
+
+Global installs use the configured registry and policy even outside the
+workspace. For a project dependency instead, use `pnpm add cline` and invoke
+it with `pnpm exec cline`.
+
+An application in `ui/` can keep its own `.npmrc` for its registry. pnpm
+behavior belongs in its applicable `pnpm-workspace.yaml`; the generator
+neither rewrites application files nor translates every nested `.npmrc`.
+Project/CLI settings can override user defaults, so these defaults are not
+an immutable security boundary. Server-side registry policy remains
+important.
+
+Literal authentication tokens/passwords are rejected before copying into
+the generated build context. Environment placeholders such as `${NPM_TOKEN}`
+are permitted, but the generator does not deliver secrets: authenticated
+builds require appropriate BuildKit secrets and runtime credentials supplied
+separately. Do not replace placeholders with secrets in generated files.
+
 - `templates/npm-guard.sh` is COPY'd into the image at `/etc/profile.d/npm-guard.sh` and also into `.devcontainer/npm-guard.sh` in the build context. It intercepts `npm install`, `npm ci`, `npm i`, and `npm add` shell-wide and redirects you to `pnpm`:
 
   ```
   [BLOCKED] This project uses pnpm. Run: pnpm install
   ```
 
-- `postCreateCommand` automatically gets a line appended that sources `npm-guard.sh` from `~/.bashrc` (VS Code terminals are non-login shells, so `/etc/profile.d` isn't sourced automatically) -- merged with any `postCreateCommand` you also set in the answers file.
+- `postCreateCommand` registers `/etc/profile.d/npm-guard.sh` in `~/.bashrc` (VS Code terminals are non-login shells). Registration is grouped before any consumer command so an existing entry does not skip that command. It does not depend on the workspace's path or the generator's output directory.
 
-The project's `.npmrc` itself is never committed to this generator repo -- only the path to it.
+### Migrating existing generated containers
+
+Keep the corporate `.npmrc` as the source. Re-run the updated generator and
+**rebuild** the container; reconnecting to the existing container will not
+install the new user configuration. Replace `npm install -g cline` with
+`pnpm add --global cline` in the consumer's answers, not the generated JSON.
+Do not remove the registry blocks or use `command npm` to bypass the guard.
+
+The project's real `.npmrc` is never committed to this generator repo.
 
 ### How file paths in the answers file are resolved
 
@@ -282,7 +407,9 @@ Generated into a consuming project's `.devcontainer/` by `generate.sh` (see [Lay
 | `.devcontainer/Dockerfile` | Toolchain installs + root-lockdown, built from the answers file. Generated — do not hand-edit |
 | `.devcontainer/npm-guard.sh` | Copied from `templates/npm-guard.sh` when `dockerfileBuild.toolchains.pnpm` is set (or via `dockerfileBuild.files[]`) |
 | `.devcontainer/install-pnpm.sh` | Copied from `templates/install-pnpm.sh` when `dockerfileBuild.toolchains.pnpm` is set |
-| `.devcontainer/.npmrc` | Copied from `dockerfileBuild.toolchains.pnpm.npmrcPath` when `dockerfileBuild.toolchains.pnpm` is set -- project-specific, never part of this submodule |
+| `.devcontainer/install-package-manager.cjs` | Shared age-aware npm/pnpm bootstrap implementation |
+| `.devcontainer/pnpm-config.yaml` | Translated corporate policy and global CLI locations, configured for root and the runtime user |
+| `.devcontainer/.npmrc` | Derived from `dockerfileBuild.toolchains.pnpm.npmrcPath`, with translated pnpm-only behavior removed -- project-specific |
 | `.devcontainer/devcontainer.answers.json` | The project's answers file — the real source of truth. Saved automatically by `generate.sh` (from `--answers <file>` or interactive prompts); re-run `generate.sh --answers .devcontainer/devcontainer.answers.json` after editing it |
 
 ## Updating
@@ -311,6 +438,8 @@ This won't clobber hand-edits — see [Generating a devcontainer for your projec
 |---|---|
 | `host.docker.internal` not resolving | Ensure `--add-host host.docker.internal:host-gateway` is in `runArgs` |
 | `npm install` blocked | Intentional — use `pnpm install` with the Harness registry |
+| Global install contacts registry.npmjs.org | Regenerate and rebuild to install runtime user registry configuration; do not unblock the public registry |
+| Harness returns 403 for a recent dependency | Check effective pnpm `minimumReleaseAge`; npm 10 does not enforce `min-release-age`. Other Harness policy blocks still require investigation |
 | Cannot reach MarkLogic | Confirm `docker compose up -d` is running on the **host**, not inside the container |
 | pnpm not found after rebuild | `postCreateCommand` may have failed; check the creation log in the VS Code output panel |
 | Write to `data/` or `licence/` fails | Those mounts are read-only by design (`EROFS`) |

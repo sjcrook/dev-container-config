@@ -6,7 +6,7 @@
     "toolchains": {
       "node": { "version": "22" },
       "java": { "version": "17" },
-      "pnpm": { "npmrcPath": "./example.npmrc" }
+      "pnpm": { "npmrcPath": "./example.npmrc", "npmVersion": "11", "version": "12" }
     }
   },
   "mounts": [

@@ -36,19 +36,27 @@ EOF
 }
 
 toolchain_pnpm_dockerfile() {
-  cat <<'EOF'
+  local remote_user="$1" npm_version="$2" pnpm_version="$3"
+  cat <<EOF
 
-# -- pnpm (pinned via install-pnpm.sh, which reads the registry and
-#    min-release-age policy from the project's own .npmrc -- nothing
-#    registry-specific is hardcoded in this submodule) -------------------------
-# .npmrc is copied first so install-pnpm.sh can read it when it runs.
-# corepack disable is intentionally omitted here: Node comes from NodeSource's
-# apt repo (not the javascript-node devcontainer feature/image), so there is
-# no pre-existing Corepack pnpm shim to conflict with.
+# -- npm/pnpm: corporate registry and translated policy ----------------------
 COPY .npmrc /root/.npmrc
+COPY pnpm-config.yaml /root/.config/pnpm/config.yaml
+COPY install-package-manager.cjs /usr/local/bin/install-package-manager.cjs
 COPY install-pnpm.sh /usr/local/bin/install-pnpm.sh
-RUN chmod +x /usr/local/bin/install-pnpm.sh \
-    && /usr/local/bin/install-pnpm.sh
+RUN NPM_VERSION=${npm_version} PNPM_VERSION=${pnpm_version} bash /usr/local/bin/install-pnpm.sh
+
+# Configure the runtime user as well as root. Global CLIs must also work when
+# lifecycle commands run outside the mounted workspace.
+RUN set -eux; \\
+    home="\$(getent passwd ${remote_user} | cut -d: -f6)"; \\
+    test -n "\$home"; \\
+    mkdir -p "\$home/.config/pnpm" /opt/devcontainer/bin /opt/devcontainer/pnpm; \\
+    cp /root/.npmrc "\$home/.npmrc"; \\
+    cp /root/.config/pnpm/config.yaml "\$home/.config/pnpm/config.yaml"; \\
+    chown ${remote_user} "\$home/.npmrc"; \\
+    chown -R ${remote_user} "\$home/.config/pnpm" /opt/devcontainer
+ENV PATH="/opt/devcontainer/bin:\${PATH}"
 
 # -- npm-guard.sh: blocks npm install/ci/i/add shell-wide, redirects to pnpm --
 COPY npm-guard.sh /etc/profile.d/npm-guard.sh

@@ -7,7 +7,7 @@ def defaultCapAdd: ["CHOWN","SETUID","SETGID","DAC_OVERRIDE","FOWNER"];
 # VS Code terminals are non-login shells, so /etc/profile.d isn't sourced automatically -- bashrc is.
 | (
     (if (.dockerfileBuild.toolchains.pnpm != null) then
-      ["grep -q npm-guard ~/.bashrc || echo '. " + $workspaceFolder + "/.devcontainer/npm-guard.sh' >> ~/.bashrc"]
+      ["(grep -q npm-guard ~/.bashrc || echo '. /etc/profile.d/npm-guard.sh' >> ~/.bashrc)"]
     else [] end)
     + (if ((.postCreateCommand // "") != "") then [.postCreateCommand] else [] end)
     | if length > 0 then join(" && ") else null end
