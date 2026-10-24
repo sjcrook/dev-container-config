@@ -29,7 +29,7 @@ files_copy_all() {
   local entries=()
   while IFS= read -r line; do
     [ -n "${line}" ] && entries+=("${line}")
-  done < <(jq -c '.files // [] | .[]' "${answers_file}")
+  done < <(jq -c '.dockerfileBuild.files // [] | .[]' "${answers_file}")
 
   [ "${#entries[@]}" -eq 0 ] && return 0
 
@@ -39,7 +39,7 @@ files_copy_all() {
     base="$(basename "${src}")"
     resolved="$(resolve_submodule_path "${src}" "${answers_dir}" "${submodule_root}")"
     if [ ! -f "${resolved}" ]; then
-      echo "ERROR: files[] sourcePath not found: ${resolved}" >&2
+      echo "ERROR: dockerfileBuild.files[] sourcePath not found: ${resolved}" >&2
       exit 1
     fi
     cp -f "${resolved}" "${out_dir}/${base}"
@@ -47,20 +47,20 @@ files_copy_all() {
   done
 }
 
-# Copies the two files toolchains.pnpm needs into the build context: the
-# project-supplied .npmrc (never committed to this submodule) and the built-in
-# install-pnpm.sh template. No-op if toolchains.pnpm isn't set.
+# Copies the two files dockerfileBuild.toolchains.pnpm needs into the build
+# context: the project-supplied .npmrc (never committed to this submodule)
+# and the built-in install-pnpm.sh template. No-op if dockerfileBuild.toolchains.pnpm isn't set.
 pnpm_copy_files() {
   local answers_file="$1" submodule_root="$2" out_dir="$3"
   local npmrc_path
-  npmrc_path="$(jq -r '.toolchains.pnpm.npmrcPath // empty' "${answers_file}")"
+  npmrc_path="$(jq -r '.dockerfileBuild.toolchains.pnpm.npmrcPath // empty' "${answers_file}")"
   [ -z "${npmrc_path}" ] && return 0
 
   local answers_dir resolved
   answers_dir="$(cd "$(dirname "${answers_file}")" && pwd)"
   resolved="$(resolve_submodule_path "${npmrc_path}" "${answers_dir}" "${submodule_root}")"
   if [ ! -f "${resolved}" ]; then
-    echo "ERROR: toolchains.pnpm.npmrcPath not found: ${resolved}" >&2
+    echo "ERROR: dockerfileBuild.toolchains.pnpm.npmrcPath not found: ${resolved}" >&2
     exit 1
   fi
   cp -f "${resolved}" "${out_dir}/.npmrc"

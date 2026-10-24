@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Loads answers from a file, or collects them interactively -- both paths
-# converge on the same schemaVersion:1 JSON shape consumed by the renderers.
+# converge on the same schemaVersion:2 JSON shape consumed by the renderers.
 set -euo pipefail
 
 answers_load_from_file() {
@@ -19,8 +19,8 @@ answers_validate_schema() {
     echo "Answers file is missing required field: schemaVersion" >&2
     exit 1
   fi
-  if [ "${version}" != "1" ]; then
-    echo "Unsupported schemaVersion: ${version} (this generator supports: 1)" >&2
+  if [ "${version}" != "2" ]; then
+    echo "Unsupported schemaVersion: ${version} (this generator supports: 2)" >&2
     exit 1
   fi
 }
@@ -33,7 +33,7 @@ answers_collect_interactive() {
   local name remote_user want_node node_version want_java java_version
   local add_mount host_path container_path readonly mount_directories mount_index target_default
   local want_pnpm_enforce pnpm_npmrc_path blocked_hosts_raw blocked_hosts_is_file extra_hosts_raw
-  local post_create java_source_paths extensions_raw files_raw
+  local post_create java_source_paths extensions_raw files_raw remote_env_raw
 
   read -r -p "Project name [DevContainer]: " name
   name="${name:-DevContainer}"
@@ -98,10 +98,10 @@ answers_collect_interactive() {
     fi
     mount_directories="$(jq -cn \
       --argjson mounts "${mount_directories}" \
-      --arg hostPath "${host_path}" \
-      --arg containerPath "${container_path}" \
+      --arg source "${host_path}" \
+      --arg target "${container_path}" \
       --argjson readonly "${readonly}" \
-      '$mounts + [{hostPath: $hostPath, containerPath: $containerPath, readonly: $readonly}]')"
+      '$mounts + [{source: $source, target: $target, readonly: $readonly}]')"
     mount_index=$((mount_index + 1))
     read -r -p "Add another bind mount? [y/N]: " add_mount
   done
@@ -125,6 +125,7 @@ answers_collect_interactive() {
   read -r -p "postCreateCommand (blank to skip): " post_create
   read -r -p "java.project.sourcePaths, comma-separated (blank to skip): " java_source_paths
   read -r -p "Extra VS Code extensions, comma-separated (blank to skip): " extensions_raw
+  read -r -p "remoteEnv entries, comma-separated KEY=VALUE pairs e.g. PATH=\${containerEnv:PATH}:/some/dir (blank to skip): " remote_env_raw
 
   jq -n \
     --arg name "${name}" \
@@ -142,6 +143,7 @@ answers_collect_interactive() {
     --arg postCreate "${post_create}" \
     --arg javaSourcePathsRaw "${java_source_paths}" \
     --arg extensionsRaw "${extensions_raw}" \
+    --arg remoteEnvRaw "${remote_env_raw}" \
     -f "$(dirname "${BASH_SOURCE[0]}")/answers-interactive.jq" \
     >"${tmp}"
 

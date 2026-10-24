@@ -30,7 +30,7 @@ hash_write_generated() {
       local newfile="${out_target}.new"
       {
         printf '%s GENERATED FILE -- do not hand-edit. Source: %s\n' "${comment}" "${source_label}"
-        printf '%s generator: dev-container-config  schemaVersion: 1  content-hash: %s\n' "${comment}" "${new_hash}"
+        printf '%s generator: dev-container-config  schemaVersion: 2  content-hash: %s\n' "${comment}" "${new_hash}"
         printf '%s' "${body}"
       } >"${newfile}"
       echo "WARNING: ${out_target} was hand-edited since it was last generated." >&2
@@ -41,7 +41,7 @@ hash_write_generated() {
 
   {
     printf '%s GENERATED FILE -- do not hand-edit. Source: %s\n' "${comment}" "${source_label}"
-    printf '%s generator: dev-container-config  schemaVersion: 1  content-hash: %s\n' "${comment}" "${new_hash}"
+    printf '%s generator: dev-container-config  schemaVersion: 2  content-hash: %s\n' "${comment}" "${new_hash}"
     printf '%s' "${body}"
   } >"${stage_target}"
 }

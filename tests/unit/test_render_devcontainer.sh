@@ -11,7 +11,7 @@ test_pnpm_auto_wires_post_create_command() {
   answers="${tmp}/answers.json"
   echo 'registry=https://example.com/' > "${tmp}/x.npmrc"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"name":"t","toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}}}
+{"schemaVersion":1,"name":"t","dockerfileBuild":{"toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}}}}
 EOF
   out="$(_render "${answers}")"
   rm -rf "${tmp}"
@@ -24,7 +24,7 @@ test_pnpm_merges_with_custom_post_create_command() {
   answers="${tmp}/answers.json"
   echo 'registry=https://example.com/' > "${tmp}/x.npmrc"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"name":"t","toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}},"postCreateCommand":"echo custom"}
+{"schemaVersion":1,"name":"t","dockerfileBuild":{"toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}}},"postCreateCommand":"echo custom"}
 EOF
   out="$(_render "${answers}")"
   rm -rf "${tmp}"
@@ -62,7 +62,7 @@ test_mounts_render_and_initialize_host_directories() {
   tmp="$(mktemp -d)"
   answers="${tmp}/answers.json"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"mountDirectories":[{"hostPath":"data","containerPath":"/workspace/data","readonly":true},{"hostPath":"../shared data","containerPath":"/workspace/shared","readonly":false}]}
+{"schemaVersion":1,"mounts":[{"source":"data","target":"/workspace/data","readonly":true},{"source":"../shared data","target":"/workspace/shared","readonly":false}]}
 EOF
   out="$(_render "${answers}")"
   rm -rf "${tmp}"

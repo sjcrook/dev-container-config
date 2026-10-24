@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generates .devcontainer/devcontainer.json and .devcontainer/Dockerfile from
-# an answers file (schemaVersion: 1), or from interactive prompts.
+# an answers file (schemaVersion: 2), or from interactive prompts.
 #
 # Usage:
 #   generate.sh --answers <file> [--out-dir <dir>] [--force]
@@ -118,7 +118,7 @@ if [ "${ANSWERS_SRC_ABS}" != "${ANSWERS_OUT_ABS}" ]; then
       *) answers_output_dir="${PWD}/${answers_output_dir}" ;;
     esac
 
-    pnpm_npmrc_path="$(jq -r '.toolchains.pnpm.npmrcPath // empty' "${ANSWERS_JSON_FILE}")"
+    pnpm_npmrc_path="$(jq -r '.dockerfileBuild.toolchains.pnpm.npmrcPath // empty' "${ANSWERS_JSON_FILE}")"
     if [[ "${pnpm_npmrc_path}" = /* ]]; then
       pnpm_npmrc_path="$(relative_path_from "${pnpm_npmrc_path}" "${answers_output_dir}")"
     fi
@@ -129,7 +129,7 @@ if [ "${ANSWERS_SRC_ABS}" != "${ANSWERS_OUT_ABS}" ]; then
     jq \
       --arg npmrcPath "${pnpm_npmrc_path}" \
       --arg blockedHostsFile "${blocked_hosts_file}" \
-      'if (.toolchains.pnpm.npmrcPath // "" | startswith("/")) then .toolchains.pnpm.npmrcPath = $npmrcPath else . end
+      'if (.dockerfileBuild.toolchains.pnpm.npmrcPath // "" | startswith("/")) then .dockerfileBuild.toolchains.pnpm.npmrcPath = $npmrcPath else . end
        | if (.blockedRegistryHostsFile // "" | startswith("/")) then .blockedRegistryHostsFile = $blockedHostsFile else . end' \
       "${STAGE_DIR}/${ANSWERS_OUT_NAME}" >"${STAGE_DIR}/${ANSWERS_OUT_NAME}.tmp"
     mv -f "${STAGE_DIR}/${ANSWERS_OUT_NAME}.tmp" "${STAGE_DIR}/${ANSWERS_OUT_NAME}"
@@ -150,6 +150,17 @@ pnpm_copy_files "${ANSWERS_JSON_FILE}" "${SCRIPT_DIR}" "${STAGE_DIR}" >/dev/null
 
 # Every step succeeded -- commit the staged files into OUT_DIR.
 mkdir -p "${OUT_DIR}"
+
+# Preserve a human-authored answers file instead of silently overwriting it:
+# back it up with a timestamp if the newly generated one differs from it.
+ANSWERS_STAGE_PATH="${STAGE_DIR}/${ANSWERS_OUT_NAME}"
+ANSWERS_DEST_PATH="${OUT_DIR}/${ANSWERS_OUT_NAME}"
+if [ -f "${ANSWERS_STAGE_PATH}" ] && [ -f "${ANSWERS_DEST_PATH}" ] && ! cmp -s "${ANSWERS_STAGE_PATH}" "${ANSWERS_DEST_PATH}"; then
+  ANSWERS_BACKUP_PATH="${ANSWERS_DEST_PATH}.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+  mv "${ANSWERS_DEST_PATH}" "${ANSWERS_BACKUP_PATH}"
+  echo "Existing answers file changed -- backed up to ${ANSWERS_BACKUP_PATH}"
+fi
+
 while IFS= read -r -d '' f; do
   name="$(basename "${f}")"
   cp -f "${f}" "${OUT_DIR}/${name}"

@@ -17,14 +17,21 @@ def parse_file_entry($cwd):
   + (if ($pnpmNpmrcPath|length) > 0 then {pnpm: {npmrcPath: ($pnpmNpmrcPath | abs_if_relative($cwd))}} else {} end)
 ) as $toolchains
 |
+({}
+  + (if ($toolchains|length) > 0 then { toolchains: $toolchains } else {} end)
+  + (if ($filesRaw|length) > 0 then
+      { files: (csv_to_array($filesRaw) | map(parse_file_entry($cwd))) }
+    else {} end)
+) as $dockerfileBuild
+|
 {
-  schemaVersion: 1,
+  schemaVersion: 2,
   name: $name,
   remoteUser: $remoteUser
 }
-+ (if ($toolchains|length) > 0 then { toolchains: $toolchains } else {} end)
++ (if ($dockerfileBuild|length) > 0 then { dockerfileBuild: $dockerfileBuild } else {} end)
 + (if ($mountDirectories|length) > 0 then
-    { mountDirectories: $mountDirectories }
+    { mounts: $mountDirectories }
   else {} end)
 + (if ($blockedHostsIsFile == "true") then
     { blockedRegistryHostsFile: $blockedHostsRaw }
@@ -34,8 +41,8 @@ def parse_file_entry($cwd):
 + (if ($extraHostsRaw|length) > 0 then
     { extraHosts: (csv_to_array($extraHostsRaw) | map(capture("^(?<h>[^:]+):(?<v>.*)$")) | map({(.h): .v}) | add) }
   else {} end)
-+ (if ($filesRaw|length) > 0 then
-    { files: (csv_to_array($filesRaw) | map(parse_file_entry($cwd))) }
++ (if ($remoteEnvRaw|length) > 0 then
+    { remoteEnv: (csv_to_array($remoteEnvRaw) | map(capture("^(?<k>[^=]+)=(?<v>.*)$")) | map({(.k): .v}) | add) }
   else {} end)
 + (if ($postCreate|length) > 0 then { postCreateCommand: $postCreate } else {} end)
 + (if ($javaSourcePathsRaw|length) > 0 then { javaProjectSourcePaths: csv_to_array($javaSourcePathsRaw) } else {} end)

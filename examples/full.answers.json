@@ -1,18 +1,23 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "AppDevContainer",
   "remoteUser": "vscode",
-  "toolchains": {
-    "node": { "version": "22" },
-    "java": { "version": "17" },
-    "pnpm": { "npmrcPath": "./example.npmrc" }
+  "dockerfileBuild": {
+    "toolchains": {
+      "node": { "version": "22" },
+      "java": { "version": "17" },
+      "pnpm": { "npmrcPath": "./example.npmrc" }
+    }
   },
-  "mountDirectories": [
-    { "hostPath": "data", "containerPath": "/workspace/data", "readonly": true }
+  "mounts": [
+    { "source": "data", "target": "/workspace/data", "readonly": true }
   ],
   "blockedRegistryHostsFile": "examples/blockedRegistryHosts.txt",
   "extraHosts": {
     "test.ipresenttoyou.com": "host-gateway"
+  },
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/workspace/node_modules/.bin"
   },
   "javaProjectSourcePaths": ["external/ml-genai-demo-v2/src"],
   "customizations": {

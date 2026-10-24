@@ -35,7 +35,7 @@ registry=http://host.docker.internal:8787/
 min-release-age=30
 EOF
   cat > "${tmp}/answers.json" <<'EOF'
-{"schemaVersion":1,"name":"t","toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./test.npmrc"}}}
+{"schemaVersion":2,"name":"t","dockerfileBuild":{"toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./test.npmrc"}}}}
 EOF
   bash "${REPO_ROOT}/generate.sh" --answers "${tmp}/answers.json" --out-dir "${tmp}/.devcontainer" >/dev/null
 

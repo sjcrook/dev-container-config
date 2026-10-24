@@ -1,12 +1,12 @@
 def defaultCapAdd: ["CHOWN","SETUID","SETGID","DAC_OVERRIDE","FOWNER"];
 
-(.mountDirectories // []) as $mounts
+(.mounts // []) as $mounts
 | (.extraHosts // {}) as $extraHosts
 | ($blockedHosts // []) as $blocked
 | (.workspaceFolder // "/workspace") as $workspaceFolder
 # VS Code terminals are non-login shells, so /etc/profile.d isn't sourced automatically -- bashrc is.
 | (
-    (if (.toolchains.pnpm != null) then
+    (if (.dockerfileBuild.toolchains.pnpm != null) then
       ["grep -q npm-guard ~/.bashrc || echo '. " + $workspaceFolder + "/.devcontainer/npm-guard.sh' >> ~/.bashrc"]
     else [] end)
     + (if ((.postCreateCommand // "") != "") then [.postCreateCommand] else [] end)
@@ -20,11 +20,11 @@ def defaultCapAdd: ["CHOWN","SETUID","SETGID","DAC_OVERRIDE","FOWNER"];
   workspaceMount: ("source=${localWorkspaceFolder},target=" + $workspaceFolder + ",type=bind,consistency=cached")
 }
 + (if ($mounts|length) > 0 then
-    { initializeCommand: ([ $mounts[] | "mkdir -p " + (("${localWorkspaceFolder}/" + .hostPath) | @sh) ] | join(" && ")) }
+    { initializeCommand: ([ $mounts[] | "mkdir -p " + (("${localWorkspaceFolder}/" + .source) | @sh) ] | join(" && ")) }
   else {} end)
 + { features: (.features // {}) }
 + (if ($mounts|length) > 0 then
-    { mounts: [ $mounts[] | "source=${localWorkspaceFolder}/" + .hostPath + ",target=" + .containerPath + ",type=bind" + (if (.readonly != false) then ",readonly" else "" end) ] }
+    { mounts: [ $mounts[] | "source=${localWorkspaceFolder}/" + .source + ",target=" + .target + ",type=bind" + (if (.readonly != false) then ",readonly" else "" end) ] }
   else {} end)
 + {
     runArgs: (
@@ -37,6 +37,7 @@ def defaultCapAdd: ["CHOWN","SETUID","SETGID","DAC_OVERRIDE","FOWNER"];
     )
   }
 + { remoteUser: (.remoteUser // "vscode") }
++ (if ((.remoteEnv // {})|length) > 0 then { remoteEnv: (.remoteEnv // {}) } else {} end)
 + (if ($postCreateCommand != null) then { postCreateCommand: $postCreateCommand } else {} end)
 + {
     customizations: {

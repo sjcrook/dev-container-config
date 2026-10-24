@@ -29,13 +29,13 @@ test_pnpm_copy_files_missing_npmrc_errors() {
   out_dir="${tmp}/out"
   mkdir -p "${out_dir}"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"name":"t","toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./missing.npmrc"}}}
+{"schemaVersion":1,"name":"t","dockerfileBuild":{"toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./missing.npmrc"}}}}
 EOF
   out="$(_pnpm_copy "${answers}" "${REPO_ROOT}" "${out_dir}" 2>&1)"
   rc=$?
   rm -rf "${tmp}"
   assert_equal "1" "${rc}" "missing npmrc exit code"
-  assert_contains "${out}" "toolchains.pnpm.npmrcPath not found" "missing npmrc error message"
+  assert_contains "${out}" "dockerfileBuild.toolchains.pnpm.npmrcPath not found" "missing npmrc error message"
 }
 
 test_pnpm_copy_files_copies_expected_files() {
@@ -46,7 +46,7 @@ test_pnpm_copy_files_copies_expected_files() {
   mkdir -p "${out_dir}"
   echo 'registry=https://example.com/' > "${tmp}/x.npmrc"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"name":"t","toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}}}
+{"schemaVersion":1,"name":"t","dockerfileBuild":{"toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}}}}
 EOF
   _pnpm_copy "${answers}" "${REPO_ROOT}" "${out_dir}" >/dev/null
 
@@ -80,7 +80,7 @@ test_files_copy_all_copies_expected_file() {
   mkdir -p "${out_dir}"
   echo 'hello' > "${tmp}/myfile.txt"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"name":"t","files":[{"sourcePath":"./myfile.txt","targetPath":"myfile.txt"}]}
+{"schemaVersion":1,"name":"t","dockerfileBuild":{"files":[{"sourcePath":"./myfile.txt","targetPath":"myfile.txt"}]}}
 EOF
   _files_copy_all "${answers}" "${REPO_ROOT}" "${out_dir}" >/dev/null
   [ -f "${out_dir}/myfile.txt" ]; assert_equal "0" "$?" "myfile.txt copied"
@@ -99,5 +99,5 @@ EOF
   _pnpm_copy "${answers}" "${REPO_ROOT}" "${out_dir}" >/dev/null
   count="$(find "${out_dir}" -type f | wc -l | tr -d ' ')"
   rm -rf "${tmp}"
-  assert_equal "0" "${count}" "no files copied when toolchains.pnpm absent"
+  assert_equal "0" "${count}" "no files copied when dockerfileBuild.toolchains.pnpm absent"
 }

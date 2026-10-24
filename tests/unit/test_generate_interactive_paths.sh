@@ -12,15 +12,15 @@ test_interactive_paths_saved_relative_to_answers_file() {
 
   out="$(
     cd "${project}" &&
-      printf '%s\n' "" "" "y" "" "n" "y" "data" "" "" "y" "../shared" "/workspace/shared" "n" "n" "y" "../project/.npmrc" "./blocked-hosts.txt" "" "" "" "" "" |
+      printf '%s\n' "" "" "y" "" "n" "y" "data" "" "" "y" "../shared" "/workspace/shared" "n" "n" "y" "../project/.npmrc" "./blocked-hosts.txt" "" "" "" "" "" "" |
       TMPDIR="${tmp}" bash "${REPO_ROOT}/generate.sh" --out-dir .devcontainer 2>&1
   )"
-  npmrc_path="$(jq -r '.toolchains.pnpm.npmrcPath' "${project}/.devcontainer/devcontainer.answers.json")"
+  npmrc_path="$(jq -r '.dockerfileBuild.toolchains.pnpm.npmrcPath' "${project}/.devcontainer/devcontainer.answers.json")"
   blocked_hosts_file="$(jq -r '.blockedRegistryHostsFile' "${project}/.devcontainer/devcontainer.answers.json")"
 
-  assert_equal "2" "$(jq '.mountDirectories | length' "${project}/.devcontainer/devcontainer.answers.json")" "interactive answers save multiple mounts"
-  assert_equal "../shared" "$(jq -r '.mountDirectories[1].hostPath' "${project}/.devcontainer/devcontainer.answers.json")" "interactive answers save relative host path"
-  assert_equal "false" "$(jq -r '.mountDirectories[1].readonly' "${project}/.devcontainer/devcontainer.answers.json")" "interactive answers save read-write selection"
+  assert_equal "2" "$(jq '.mounts | length' "${project}/.devcontainer/devcontainer.answers.json")" "interactive answers save multiple mounts"
+  assert_equal "../shared" "$(jq -r '.mounts[1].source' "${project}/.devcontainer/devcontainer.answers.json")" "interactive answers save relative host path"
+  assert_equal "false" "$(jq -r '.mounts[1].readonly' "${project}/.devcontainer/devcontainer.answers.json")" "interactive answers save read-write selection"
   rendered_config="$(bash "${REPO_ROOT}/lib/render-devcontainer.sh" "${project}/.devcontainer/devcontainer.answers.json" '[]')"
   assert_equal "2" "$(printf '%s' "${rendered_config}" | jq '.mounts | length')" "generated devcontainer includes both mounts"
   assert_contains "$(printf '%s' "${rendered_config}" | jq -r '.mounts[1]')" "source=\${localWorkspaceFolder}/../shared,target=/workspace/shared,type=bind" "generated mount uses workspace-relative source and selected target"

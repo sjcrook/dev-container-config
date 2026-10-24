@@ -7,12 +7,12 @@ source "${SCRIPT_DIR}/toolchains.sh"
 ANSWERS_FILE="$1"
 
 REMOTE_USER="$(jq -r '.remoteUser // "vscode"' "${ANSWERS_FILE}")"
-NODE_VERSION="$(jq -r '.toolchains.node.version // empty' "${ANSWERS_FILE}")"
-JAVA_VERSION="$(jq -r '.toolchains.java.version // empty' "${ANSWERS_FILE}")"
-PNPM_NPMRC_PATH="$(jq -r '.toolchains.pnpm.npmrcPath // empty' "${ANSWERS_FILE}")"
+NODE_VERSION="$(jq -r '.dockerfileBuild.toolchains.node.version // empty' "${ANSWERS_FILE}")"
+JAVA_VERSION="$(jq -r '.dockerfileBuild.toolchains.java.version // empty' "${ANSWERS_FILE}")"
+PNPM_NPMRC_PATH="$(jq -r '.dockerfileBuild.toolchains.pnpm.npmrcPath // empty' "${ANSWERS_FILE}")"
 
 if [ -n "${PNPM_NPMRC_PATH}" ] && [ -z "${NODE_VERSION}" ]; then
-  echo "ERROR: toolchains.pnpm requires toolchains.node to be set" >&2
+  echo "ERROR: dockerfileBuild.toolchains.pnpm requires dockerfileBuild.toolchains.node to be set" >&2
   exit 1
 fi
 
@@ -41,7 +41,7 @@ fi
 APT_PACKAGES=()
 while IFS= read -r pkg; do
   [ -n "${pkg}" ] && APT_PACKAGES+=("${pkg}")
-done < <(jq -r '.aptPackages // [] | .[]' "${ANSWERS_FILE}")
+done < <(jq -r '.dockerfileBuild.aptPackages // [] | .[]' "${ANSWERS_FILE}")
 
 if [ "${#APT_PACKAGES[@]}" -gt 0 ]; then
   printf '\n# -- Additional apt packages --------------------------------------------------\nRUN apt-get update \\\n'
@@ -58,7 +58,7 @@ fi
 FILE_ENTRIES=()
 while IFS= read -r line; do
   [ -n "${line}" ] && FILE_ENTRIES+=("${line}")
-done < <(jq -c '.files // [] | .[]' "${ANSWERS_FILE}")
+done < <(jq -c '.dockerfileBuild.files // [] | .[]' "${ANSWERS_FILE}")
 
 if [ "${#FILE_ENTRIES[@]}" -gt 0 ]; then
   printf '\n# -- Project-supplied files (copied by files.sh into the build context) -------\n'

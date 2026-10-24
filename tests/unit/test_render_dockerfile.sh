@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for lib/render-dockerfile.sh, focused on the toolchains.pnpm wiring.
+# Tests for lib/render-dockerfile.sh, focused on the dockerfileBuild.toolchains.pnpm wiring.
 
 test_pnpm_without_node_fails() {
   local tmp answers out rc
@@ -7,13 +7,13 @@ test_pnpm_without_node_fails() {
   answers="${tmp}/answers.json"
   echo 'registry=https://example.com/' > "${tmp}/x.npmrc"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"name":"t","toolchains":{"pnpm":{"npmrcPath":"./x.npmrc"}}}
+{"schemaVersion":1,"name":"t","dockerfileBuild":{"toolchains":{"pnpm":{"npmrcPath":"./x.npmrc"}}}}
 EOF
   out="$(bash "${REPO_ROOT}/lib/render-dockerfile.sh" "${answers}" 2>&1)"
   rc=$?
   rm -rf "${tmp}"
   assert_equal "1" "${rc}" "pnpm-without-node exit code"
-  assert_contains "${out}" "toolchains.pnpm requires toolchains.node" "pnpm-without-node error message"
+  assert_contains "${out}" "dockerfileBuild.toolchains.pnpm requires dockerfileBuild.toolchains.node" "pnpm-without-node error message"
 }
 
 test_pnpm_with_node_emits_toolchain_block() {
@@ -22,7 +22,7 @@ test_pnpm_with_node_emits_toolchain_block() {
   answers="${tmp}/answers.json"
   echo 'registry=https://example.com/' > "${tmp}/x.npmrc"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"name":"t","toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}}}
+{"schemaVersion":1,"name":"t","dockerfileBuild":{"toolchains":{"node":{"version":"22"},"pnpm":{"npmrcPath":"./x.npmrc"}}}}
 EOF
   out="$(bash "${REPO_ROOT}/lib/render-dockerfile.sh" "${answers}")"
   rm -rf "${tmp}"
@@ -37,9 +37,9 @@ test_no_pnpm_omits_toolchain_block() {
   tmp="$(mktemp -d)"
   answers="${tmp}/answers.json"
   cat > "${answers}" <<'EOF'
-{"schemaVersion":1,"name":"t","toolchains":{"node":{"version":"22"}}}
+{"schemaVersion":1,"name":"t","dockerfileBuild":{"toolchains":{"node":{"version":"22"}}}}
 EOF
   out="$(bash "${REPO_ROOT}/lib/render-dockerfile.sh" "${answers}")"
   rm -rf "${tmp}"
-  assert_not_contains "${out}" "install-pnpm.sh" "no pnpm wiring when toolchains.pnpm absent"
+  assert_not_contains "${out}" "install-pnpm.sh" "no pnpm wiring when dockerfileBuild.toolchains.pnpm absent"
 }
