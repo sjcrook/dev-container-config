@@ -329,7 +329,8 @@ to Docker build networking.
 
 ### Runtime installs and project configuration
 
-With the generated user defaults, a consumer may set:
+When the project opts into the pnpm toolchain, a consumer may install Cline
+globally from the configured registry and policy:
 
 ```json
 "postCreateCommand": "pnpm add --global cline"
@@ -338,6 +339,20 @@ With the generated user defaults, a consumer may set:
 Global installs use the configured registry and policy even outside the
 workspace. For a project dependency instead, use `pnpm add cline` and invoke
 it with `pnpm exec cline`.
+
+Projects that do not opt into the pnpm toolchain can use npm. Because the
+container runs as the non-root `vscode` user, install global packages into a
+user-writable prefix instead of npm's system prefix, and add that prefix's
+`bin` directory to the VS Code remote environment:
+
+```json
+{
+  "postCreateCommand": "npm install --global --prefix \"$HOME/.local\" cline",
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/.local/bin"
+  }
+}
+```
 
 An application in `ui/` can keep its own `.npmrc` for its registry. pnpm
 behavior belongs in its applicable `pnpm-workspace.yaml`; the generator
@@ -364,9 +379,12 @@ separately. Do not replace placeholders with secrets in generated files.
 
 Keep the corporate `.npmrc` as the source. Re-run the updated generator and
 **rebuild** the container; reconnecting to the existing container will not
-install the new user configuration. Replace `npm install -g cline` with
-`pnpm add --global cline` in the consumer's answers, not the generated JSON.
-Do not remove the registry blocks or use `command npm` to bypass the guard.
+install the new user configuration. If the project opts into the pnpm
+toolchain, use `pnpm add --global cline` in the consumer's answers, not the
+generated JSON. Without that toolchain, install Cline with npm using
+`--prefix "$HOME/.local"` and set `remoteEnv.PATH` to include
+`${containerEnv:HOME}/.local/bin`, as in the example above. Do not remove
+registry blocks or use `command npm` to bypass the guard.
 
 The project's real `.npmrc` is never committed to this generator repo.
 
