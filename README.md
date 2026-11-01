@@ -347,7 +347,7 @@ user-writable prefix instead of npm's system prefix, and add that prefix's
 
 ```json
 {
-  "postCreateCommand": "npm install --global --prefix \"$HOME/.local\" cline",
+  "postCreateCommand": "npm install --global --prefix $HOME/.local cline",
   "remoteEnv": {
     "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/.local/bin"
   }
@@ -382,7 +382,7 @@ Keep the corporate `.npmrc` as the source. Re-run the updated generator and
 install the new user configuration. If the project opts into the pnpm
 toolchain, use `pnpm add --global cline` in the consumer's answers, not the
 generated JSON. Without that toolchain, install Cline with npm using
-`--prefix "$HOME/.local"` and set `remoteEnv.PATH` to include
+`--prefix $HOME/.local` and set `remoteEnv.PATH` to include
 `${containerEnv:HOME}/.local/bin`, as in the example above. Do not remove
 registry blocks or use `command npm` to bypass the guard.
 

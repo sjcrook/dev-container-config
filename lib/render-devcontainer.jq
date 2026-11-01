@@ -20,7 +20,10 @@ def defaultCapAdd: ["CHOWN","SETUID","SETGID","DAC_OVERRIDE","FOWNER"];
   workspaceMount: ("source=${localWorkspaceFolder},target=" + $workspaceFolder + ",type=bind,consistency=cached")
 }
 + (if ($mounts|length) > 0 then
-    { initializeCommand: ([ $mounts[] | "mkdir -p " + (("${localWorkspaceFolder}/" + .source) | @sh) ] | join(" && ")) }
+    # `-e` short-circuits mkdir -p for sources that already exist (e.g. a file
+    # mounted read-only, like AGENTS.md) -- mkdir -p errors on an existing
+    # non-directory path, it only tolerates an existing directory.
+    { initializeCommand: ([ $mounts[] | ("${localWorkspaceFolder}/" + .source) as $path | "[ -e " + ($path|@sh) + " ] || mkdir -p " + ($path|@sh) ] | join(" && ")) }
   else {} end)
 + { features: (.features // {}) }
 + (if ($mounts|length) > 0 then

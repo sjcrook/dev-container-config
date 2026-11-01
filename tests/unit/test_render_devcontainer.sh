@@ -81,3 +81,25 @@ EOF
   assert_equal "source=\${localWorkspaceFolder}/../shared data,target=/workspace/shared,type=bind" "$(printf '%s' "${out}" | jq -r '.mounts[1]')" "second mount uses its configured relative source and target"
   assert_contains "$(printf '%s' "${out}" | jq -r '.initializeCommand')" "'\${localWorkspaceFolder}/../shared data'" "initialize command safely quotes host paths"
 }
+
+test_initialize_command_skips_mkdir_for_existing_file_mount() {
+  # A mount source that is already a file (e.g. AGENTS.md) must not be
+  # mkdir -p'd -- mkdir -p errors on an existing non-directory path.
+  local tmp answers out pcc localWorkspaceFolder
+  tmp="$(mktemp -d)"
+  answers="${tmp}/answers.json"
+  cat > "${answers}" <<'EOF'
+{"schemaVersion":1,"mounts":[{"source":"AGENTS.md","target":"/workspace/AGENTS.md","readonly":true}]}
+EOF
+  out="$(_render "${answers}")"
+  pcc="$(printf '%s' "${out}" | jq -r '.initializeCommand')"
+  assert_equal "[ -e '\${localWorkspaceFolder}/AGENTS.md' ] || mkdir -p '\${localWorkspaceFolder}/AGENTS.md'" "${pcc}" "existing-path check guards mkdir -p"
+
+  mkdir -p "${tmp}/proj"
+  touch "${tmp}/proj/AGENTS.md"
+  localWorkspaceFolder="${tmp}/proj"
+  ( eval "${pcc}" )
+  assert_equal "0" "$?" "initializeCommand succeeds when AGENTS.md already exists as a file"
+  assert_equal "false" "$(test -d "${tmp}/proj/AGENTS.md" && echo true || echo false)" "AGENTS.md remains a file, not a directory"
+  rm -rf "${tmp}"
+}
