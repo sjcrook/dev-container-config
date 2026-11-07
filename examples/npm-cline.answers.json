@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "name": "ClineDevContainer",
+  "remoteUser": "vscode",
+  "dockerfileBuild": {
+    "toolchains": {
+      "node": { "version": "22" }
+    }
+  },
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/.local/bin"
+  },
+  "postCreateCommand": "npm install --global --prefix $HOME/.local cline"
+}

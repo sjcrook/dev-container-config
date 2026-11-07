@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 2,
+  "name": "CopilotDevContainer",
+  "remoteUser": "vscode",
+  "dockerfileBuild": {
+    "toolchains": {
+      "node": { "version": "22" },
+      "pnpm": { "npmrcPath": "./example.npmrc", "npmVersion": "11", "version": "12" }
+    }
+  },
+  "postCreateCommand": "pnpm --ignore-scripts=false --allow-build=@github/copilot add --global @github/copilot"
+}
