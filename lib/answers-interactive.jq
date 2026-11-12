@@ -16,9 +16,11 @@ def parse_file_entry($cwd):
   + (if ($javaVersion|length) > 0 then {java: {version: $javaVersion}} else {} end)
   + (if ($pnpmNpmrcPath|length) > 0 then {pnpm: {npmrcPath: ($pnpmNpmrcPath | abs_if_relative($cwd))}} else {} end)
 ) as $toolchains
+| (csv_to_array($aptPackagesRaw) | unique) as $aptPackages
 |
 ({}
   + (if ($toolchains|length) > 0 then { toolchains: $toolchains } else {} end)
+  + (if ($aptPackages|length) > 0 then { aptPackages: $aptPackages } else {} end)
   + (if ($filesRaw|length) > 0 then
       { files: (csv_to_array($filesRaw) | map(parse_file_entry($cwd))) }
     else {} end)

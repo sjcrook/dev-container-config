@@ -53,8 +53,11 @@
         },
         "aptPackages": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Plain 'apt-get install' packages that need no special repo setup."
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9+.-]+(:[a-z0-9][a-z0-9-]*)?(=[0-9][A-Za-z0-9.+:~_-]*)?$(?![\\s\\S])"
+          },
+          "description": "Packages from configured apt repositories, e.g. sshpass or rsync. Interactive mode accepts a comma-separated list. Optional :architecture and =version qualifiers are supported; shell syntax, options, and whitespace are rejected."
         },
         "files": {
           "type": "array",

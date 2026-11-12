@@ -7,11 +7,11 @@
 test_interactive_answers_survive_declining_everything() {
   local tmp_home out rc
   tmp_home="$(mktemp -d)"
-  # Project name, remote user, Node?, Java?, data mount?, hosts, extra hosts,
-  # files, postCreateCommand, java source paths, extensions -- all blank/"n".
+  # Project name, remote user, Node?, Java?, apt packages, data mount?, hosts,
+  # extra hosts, files, postCreateCommand, java source paths, extensions, remoteEnv.
   # Piped directly (not via "$(...)") so trailing blank lines survive --
   # command substitution strips trailing newlines and would truncate stdin.
-  out="$(printf '\n\n\nn\nn\nn\n\n\n\n\n\n\n' | TMPDIR="${tmp_home}" bash -c "source '${REPO_ROOT}/lib/answers.sh' && answers_collect_interactive" 2>&1)"
+  out="$(printf '%s\n' "" "" "n" "n" "" "n" "" "" "" "" "" "" "" | TMPDIR="${tmp_home}" bash -c "source '${REPO_ROOT}/lib/answers.sh' && answers_collect_interactive" 2>&1)"
   rc=$?
   rm -rf "${tmp_home}"
   assert_equal "0" "${rc}" "declining Node/Java/mounts/pnpm doesn't crash"

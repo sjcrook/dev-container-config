@@ -13,6 +13,20 @@ PNPM_NPMRC_PATH="$(jq -r '.dockerfileBuild.toolchains.pnpm.npmrcPath // empty' "
 NPM_VERSION="$(jq -r '.dockerfileBuild.toolchains.pnpm.npmVersion // "11"' "${ANSWERS_FILE}")"
 PNPM_VERSION="$(jq -r '.dockerfileBuild.toolchains.pnpm.version // "12"' "${ANSWERS_FILE}")"
 
+APT_PACKAGES_JSON="$(jq -ce '
+  .dockerfileBuild.aptPackages
+  | if . == null then [] else . end
+  | if type != "array" then
+      error("dockerfileBuild.aptPackages must be an array of package names")
+    elif all(.[];
+      if type == "string" then
+        test("^[a-z0-9][a-z0-9+.-]+(:[a-z0-9][a-z0-9-]*)?(=[0-9][A-Za-z0-9.+:~_-]*)?$(?![\\s\\S])")
+      else false end
+    ) then .
+    else error("Invalid dockerfileBuild.aptPackages entry: expected a package name with optional :architecture and =version; shell syntax, options, and whitespace are not allowed")
+    end
+' "${ANSWERS_FILE}")" || exit 1
+
 if [ -n "${PNPM_NPMRC_PATH}" ] && [ -z "${NODE_VERSION}" ]; then
   echo "ERROR: dockerfileBuild.toolchains.pnpm requires dockerfileBuild.toolchains.node to be set" >&2
   exit 1
@@ -53,7 +67,7 @@ fi
 APT_PACKAGES=()
 while IFS= read -r pkg; do
   [ -n "${pkg}" ] && APT_PACKAGES+=("${pkg}")
-done < <(jq -r '.dockerfileBuild.aptPackages // [] | .[]' "${ANSWERS_FILE}")
+done < <(printf '%s' "${APT_PACKAGES_JSON}" | jq -r '.[]')
 
 if [ "${#APT_PACKAGES[@]}" -gt 0 ]; then
   printf '\n# -- Additional apt packages --------------------------------------------------\nRUN apt-get update \\\n'

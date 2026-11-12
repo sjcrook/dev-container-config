@@ -10,6 +10,7 @@ _run_interactive_jq() {
     --arg cwd "${CWD:-/cwd}" \
     --arg nodeVersion "${NODE_VERSION:-}" \
     --arg javaVersion "${JAVA_VERSION:-}" \
+    --arg aptPackagesRaw "${APT_PACKAGES_RAW:-}" \
     --argjson mountDirectories "${MOUNT_DIRECTORIES:-[]}" \
     --arg wantPnpmEnforce "${WANT_PNPM_ENFORCE:-n}" \
     --arg pnpmNpmrcPath "${PNPM_NPMRC_PATH:-}" \
@@ -21,6 +22,18 @@ _run_interactive_jq() {
     --arg javaSourcePathsRaw "${JAVA_SRC_RAW:-}" \
     --arg extensionsRaw "${EXTENSIONS_RAW:-}" \
     --arg remoteEnvRaw "${REMOTE_ENV_RAW:-}"
+}
+
+test_apt_packages_are_trimmed_filtered_and_deduplicated() {
+  local out
+  out="$(APT_PACKAGES_RAW=' sshpass, , rsync,sshpass,  ' _run_interactive_jq)"
+  assert_equal '["rsync","sshpass"]' "$(printf '%s' "${out}" | jq -c '.dockerfileBuild.aptPackages')" "normalized apt package list"
+}
+
+test_empty_apt_packages_are_omitted() {
+  local out
+  out="$(APT_PACKAGES_RAW=' , , ' _run_interactive_jq)"
+  assert_equal "false" "$(printf '%s' "${out}" | jq 'has("dockerfileBuild")')" "empty apt list does not create build configuration"
 }
 
 test_mount_directories_are_included_in_answers() {

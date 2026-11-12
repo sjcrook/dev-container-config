@@ -30,7 +30,7 @@ answers_collect_interactive() {
   local tmp
   tmp="$(mktemp -t devcontainer-answers.XXXXXX)"
 
-  local name remote_user want_node node_version want_java java_version
+  local name remote_user want_node node_version want_java java_version apt_packages_raw
   local add_mount host_path container_path readonly mount_directories mount_index target_default
   local want_pnpm_enforce pnpm_npmrc_path blocked_hosts_raw blocked_hosts_is_file extra_hosts_raw
   local post_create java_source_paths extensions_raw files_raw remote_env_raw
@@ -54,6 +54,8 @@ answers_collect_interactive() {
     read -r -p "  Java version [17]: " java_version
     java_version="${java_version:-17}"
   fi
+
+  read -r -p "Additional apt packages, comma-separated (e.g. sshpass, rsync; blank to skip): " apt_packages_raw
 
   mount_directories="[]"
   mount_index=0
@@ -133,6 +135,7 @@ answers_collect_interactive() {
     --arg cwd "$(pwd)" \
     --arg nodeVersion "${node_version}" \
     --arg javaVersion "${java_version}" \
+    --arg aptPackagesRaw "${apt_packages_raw}" \
     --argjson mountDirectories "${mount_directories}" \
     --arg wantPnpmEnforce "${want_pnpm_enforce}" \
     --arg pnpmNpmrcPath "${pnpm_npmrc_path}" \

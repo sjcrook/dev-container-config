@@ -44,6 +44,28 @@ Both modes write `devcontainer.json` and `Dockerfile` into `--out-dir` (default 
 
 Interactive mode can add multiple bind mounts. For each mount, enter a host path relative to the workspace, an absolute container path, and whether it should be read-only; the first mount defaults to `data` → `/workspace/data`, read-only.
 
+Interactive mode also asks for additional apt packages as a comma-separated list
+(for example, `sshpass, rsync`). Whitespace and empty entries are removed, and
+duplicates are installed only once. Leave the prompt blank to skip.
+For file-based answers, set `dockerfileBuild.aptPackages`:
+
+```json
+{
+  "schemaVersion": 2,
+  "dockerfileBuild": {
+    "aptPackages": ["sshpass", "rsync"]
+  }
+}
+```
+
+Packages are installed at image build time from configured apt repositories;
+this option does not configure additional repositories. Use package names, not
+shell commands or apt options. Optional `:architecture` and `=version`
+qualifiers are supported. Invalid entries stop generation without replacing
+existing output. Regenerate and rebuild the dev container after changing packages.
+For password-based SSH with `sshpass`, keep passwords out of answers files,
+images, and command-line arguments; prefer SSH keys where possible.
+
 `generate.sh` also saves the resolved answers JSON into `--out-dir` so it's never only a throwaway temp file:
 - `--answers <file>` copies that file in under its own basename (e.g. `devcontainer.answers.json`) — skipped if it's already there.
 - Interactive mode saves the collected answers as `devcontainer.answers.json`.
