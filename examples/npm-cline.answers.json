@@ -64,16 +64,6 @@
             "source": "AGENTS.md",
             "target": "/workspace/AGENTS.md",
             "readonly": true
-        },
-        {
-            "source": "../../laravel_dac_formatter",
-            "target": "/workspace/data/laravel_dac_formatter",
-            "readonly": true
-        },
-        {
-            "source": "../../laravel_ipty",
-            "target": "/workspace/data/laravel_ipty",
-            "readonly": true
         }
     ],
     "remoteEnv": {
