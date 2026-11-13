@@ -11,8 +11,7 @@ Everything in this repo is the vendored, read-only core (`generate.sh`, `lib/`, 
 Vendor this repo as a git submodule in the consuming project:
 
 ```bash
-git submodule add <this-repo-url> external/dev-container-config
-git submodule update --init --recursive
+git submodule add --depth 1 <this-repo-url> external/dev-container-config
 ```
 
 Unlike some vendored tools, nothing here hardcodes that path — `generate.sh` resolves its own location at runtime via `BASH_SOURCE`, so you can vendor it anywhere. `external/dev-container-config` is just the convention used throughout this README and in the shipped examples.
@@ -20,9 +19,9 @@ Unlike some vendored tools, nothing here hardcodes that path — `generate.sh` r
 A fresh clone of a project that vendors this needs:
 
 ```bash
-git clone --recurse-submodules <project-url>
-# or, if already cloned:
-git submodule update --init --recursive
+git clone <project-url>
+cd <your-project>
+git submodule update --init --depth 1
 ```
 
 ## Generating a devcontainer for your project
@@ -457,9 +456,9 @@ Generated into a consuming project's `.devcontainer/` by `generate.sh` (see [Lay
 Pull upstream changes into a consuming project, from the consumer's repo root:
 
 ```bash
-git submodule update --remote external/dev-container-config   # fetches + fast-forwards to the submodule's remote HEAD
-git add external/dev-container-config                          # stage the new commit pointer
-git commit -m "chore: update dev-container-config"           # the pointer bump is a real commit in the consumer repo
+git submodule update --remote --depth 1 external/dev-container-config # fetches and checks out the commit at the configured remote-tracking branch
+git add external/dev-container-config # stage the new commit pointer
+git commit -m "chore: update dev-container-config" # the pointer bump is a real commit in the consumer repo
 ```
 
 `--remote` is the key flag — a plain `git submodule update` alone re-checks-out whatever commit the consumer repo currently *points at*; it won't move that pointer forward on its own. Equivalently, from inside the submodule itself: `cd external/dev-container-config && git pull && cd - && git add external/dev-container-config && git commit`.
